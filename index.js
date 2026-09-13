@@ -476,8 +476,13 @@ client.on('message', async (msg) => {
     await pushMessage(userId, 'user', body);
     
     // ── UX Enhancement: Show typing indicator ────────────────
-    const chat = await msg.getChat();
-    await chat.sendStateTyping();
+    let chat = null;
+    try {
+      chat = await msg.getChat();
+      await chat.sendStateTyping();
+    } catch (e) {
+      console.warn('[TYPING WARN] Could not send typing state:', e.message);
+    }
 
     // Fetch history ONCE (includes the message we just pushed)
     const history = await getHistory(userId);
@@ -490,7 +495,10 @@ client.on('message', async (msg) => {
     const reply = await askAI(messages);
     await pushMessage(userId, 'assistant', reply);
 
-    await chat.clearState(); // Stop typing
+    if (chat) {
+      try { await chat.clearState(); } catch (e) {} // Stop typing
+    }
+    
     await msg.reply(reply);
 
     console.log(`[OUT] ${reply.slice(0, 100)}`);
