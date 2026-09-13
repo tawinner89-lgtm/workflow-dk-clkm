@@ -1,0 +1,9 @@
+node_modules
+.env
+.wwebjs_auth
+.wwebjs_cache
+qr.html
+*.log
+.DS_Store
+
+DK Clim/
