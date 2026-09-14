@@ -316,11 +316,13 @@ async function syncToAdmin(history, userId) {
     .join('\n');
 
   const prompt = [
-    'Analyse this WhatsApp conversation between a DK Clim sales agent and a client.',
-    'If the client provided BOTH their full name AND their address or neighborhood, return ONLY a single-line JSON (no newlines inside values):',
-    '{"hasBooking":true,"clientName":"full name","clientAddress":"address or neighborhood","clientContactPhone":"phone or empty","problemReported":"one-line summary","type":"Installation"}',
-    'If not enough info yet, return ONLY: {"hasBooking":false}',
-    'IMPORTANT: Return ONLY the JSON object, nothing else. No explanation. No markdown.',
+    'Analyse this recent WhatsApp conversation between a DK Clim agent and a client.',
+    'IMPORTANT: ONLY extract a booking if the client explicitly requested or confirmed it in the VERY LAST messages.',
+    'If the client is just asking random questions, OR if the booking was already finalized earlier and they moved on to casual talk, return {"hasBooking":false}.',
+    'If they JUST provided BOTH their full name AND their address to book an intervention, return ONLY a single-line JSON:',
+    '{"hasBooking":true,"clientName":"full name","clientAddress":"address","clientContactPhone":"phone","problemReported":"summary","type":"Installation"}',
+    'If not enough info yet, or if it is an old topic, return ONLY: {"hasBooking":false}',
+    'IMPORTANT: Return ONLY the JSON object, nothing else.',
     '',
     'CONVERSATION:',
     recentText,
