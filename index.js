@@ -194,6 +194,22 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+async function askOpenRouter(messages, maxTokens) {
+  const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+    model: 'qwen/qwen-2.5-72b-instruct',
+    messages,
+    max_tokens: maxTokens,
+    temperature: 0.4,
+  }, {
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 15000
+  });
+  return res.data.choices[0].message.content.trim();
+}
+
 async function askDeepSeek(messages, maxTokens) {
   const res = await axios.post('https://api.deepseek.com/chat/completions', {
     model: 'deepseek-chat',
@@ -228,6 +244,14 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
           return await askDeepSeek(messages, maxTokens);
         } catch (dsErr) {
           console.error('[DEEPSEEK FALLBACK ERR]', dsErr.message);
+          if (process.env.OPENROUTER_API_KEY) {
+            console.warn('[DEEPSEEK] Error – Falling back to OpenRouter (Qwen)!');
+            try {
+              return await askOpenRouter(messages, maxTokens);
+            } catch (orErr) {
+              console.error('[OPENROUTER FALLBACK ERR]', orErr.message);
+            }
+          }
         }
       }
       
