@@ -455,7 +455,7 @@ client.on('message', async (msg) => {
   if (!body) return;
   
   // ── Admin Learning Mode ──────────────────────────
-  if (userId === CONFIG.adminPhone || userId === '191396711506131@lid') {
+  if (userId === CONFIG.adminPhone || userId === '191396711506131@lid' || userId === '212669247744@c.us') {
     if (body.toLowerCase().startsWith('مسح') || body.toLowerCase().startsWith('clear')) {
       await pool.query('DELETE FROM "BotRule"');
       await msg.reply('✅ تم مسح جميع القواعد الإضافية. البوت دابا رجع للحالة الأصلية ديالو.');
