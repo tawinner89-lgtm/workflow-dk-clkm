@@ -499,44 +499,52 @@ client.on('message', async (msg) => {
   console.log(`\n[IN]  ${userId}: "${body.slice(0, 80)}"`);
 
   try {
+    // 1. Save user message immediately
     await pushMessage(userId, 'user', body);
     
-    // ── UX Enhancement: Show typing indicator ────────────────
-    let chat = null;
-    try {
-      chat = await msg.getChat();
-      await chat.sendStateTyping();
-    } catch (e) {
-      console.warn('[TYPING WARN] Could not send typing state:', e.message);
-    }
-
-    // Fetch history ONCE (includes the message we just pushed)
-    const history = await getHistory(userId);
-
-    const messages = [
-      { role: 'system', content: await getSystemPrompt() },
-      ...history,
-    ];
-
-    const reply = await askAI(messages);
-    await pushMessage(userId, 'assistant', reply);
-
-    if (chat) {
-      try { await chat.clearState(); } catch (e) {} // Stop typing
-    }
+    // 2. Debounce logic (Anti-Spam / Wait 2 seconds before replying)
+    if (!global.debounceTimers) global.debounceTimers = new Map();
+    if (global.debounceTimers.has(userId)) clearTimeout(global.debounceTimers.get(userId));
     
-    await msg.reply(reply);
+    global.debounceTimers.set(userId, setTimeout(async () => {
+      try {
+        global.debounceTimers.delete(userId);
+        
+        let chat = null;
+        try {
+          chat = await msg.getChat();
+          await chat.sendStateTyping();
+        } catch (e) {
+          console.warn('[TYPING WARN] Could not send typing state:', e.message);
+        }
 
-    console.log(`[OUT] ${reply.slice(0, 100)}`);
-    
-    // Background: sync booking to admin (use history already fetched to avoid extra DB call)
-    syncToAdmin(history, userId).catch(err => {
-      console.error('[SYNC ERR]', err.message);
-    });
+        // Fetch history (will include ALL messages sent during the 2s window)
+        const history = await getHistory(userId);
+
+        const aiMessages = [
+          { role: 'system', content: await getSystemPrompt() },
+          ...history,
+        ];
+
+        const reply = await askAI(aiMessages);
+        await pushMessage(userId, 'assistant', reply);
+
+        if (chat) {
+          try { await chat.clearState(); } catch (e) {}
+        }
+        
+        await msg.reply(reply);
+        console.log(`[OUT] ${reply.slice(0, 100)}`);
+        
+        syncToAdmin(history, userId).catch(err => console.error('[SYNC ERR]', err.message));
+      } catch (innerErr) {
+        console.error('[AI DEBOUNCE ERR]', innerErr.message);
+        await msg.reply('عذراً، وقع مشكل تقني. حاول مرة أخرى من بعد.').catch(() => {});
+      }
+    }, 2000)); // Wait 2000ms
 
   } catch (err) {
     console.error('[MSG ERR]', err.message);
-    await msg.reply('عذراً، وقع مشكل تقني. حاول مرة أخرى من بعد.').catch(() => {});
   }
 });
 
