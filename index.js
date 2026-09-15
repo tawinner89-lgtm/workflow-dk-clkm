@@ -324,7 +324,7 @@ async function syncToAdmin(history, userId) {
     'IMPORTANT: ONLY extract a booking if the client explicitly requested or confirmed it in the VERY LAST messages.',
     'If the client is just asking random questions, OR if the booking was already finalized earlier and they moved on to casual talk, return {"hasBooking":false}.',
     'If they JUST provided BOTH their full name AND their address to book an intervention, return ONLY a single-line JSON:',
-    '{"hasBooking":true,"clientName":"full name","clientAddress":"address","clientContactPhone":"phone","problemReported":"summary","type":"Installation"}',
+    '{"hasBooking":true,"clientName":"full name","clientAddress":"address","problemReported":"summary","type":"Installation"}',
     'If not enough info yet, or if it is an old topic, return ONLY: {"hasBooking":false}',
     'IMPORTANT: Return ONLY the JSON object, nothing else.',
     '',
