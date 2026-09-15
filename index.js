@@ -28,7 +28,7 @@ try {
 // ─────────────────────────────────────────────
 const CONFIG = {
   groqModel      : 'openai/gpt-oss-120b',
-  maxHistory     : 16,           // messages kept per user
+  maxHistory     : 60,           // messages kept per user
   replyMaxTokens : 600,          // keep replies concise
   extractMaxTokens: 400,         // booking extraction call (enough for full JSON)
   qrPort         : 3000,         // QR web server port
