@@ -477,8 +477,17 @@ client.on('message', async (msg) => {
   if (msg.from === 'status@broadcast' || msg.from.includes('@g.us')) return;
 
   const userId = msg.from;
-  const body = msg.body?.trim();
-  if (!body) return;
+  let body = msg.body?.trim() || '';
+  
+  if (msg.hasMedia) {
+    body = `[الزبون أرسل صورة أو فيديو] ${body}`;
+  }
+  
+  if (body.length > 1000) {
+    body = body.substring(0, 1000) + '... (تم قطع الرسالة لأنها طويلة جداً)';
+  }
+  
+  if (!body.trim()) return;
   
   // ── Admin Learning Mode ──────────────────────────
   if (userId === CONFIG.adminPhone || userId === '191396711506131@lid' || userId === '212669247744@c.us' || userId === '280998453498053@lid') {
