@@ -167,12 +167,14 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
   • انستغرام: https://www.instagram.com/dk_clim_maroc/
   • تيك توك: https://www.tiktok.com/@dk.clim.maroc
 
-📦 الأجهزة المتوفرة:
-• DAIKOOL 9000 BTU Inverter – 3 300 DH | DAIKOOL 12000 BTU Inverter – 4 000 DH
-• PROMO: DAIKOOL 9000 BTU – 3 999 DH (شامل التركيب + النحاس + السيبور)
-• CIAT 9000 BTU Inverter – 3 800 DH | CIAT 12000 BTU – 4 300 DH
-• TCL 9000 BTU ON/OFF – 3 200 DH | TCL 12000 BTU – 4 000 DH
-• ماركات أخرى متوفرة: LG، Carrier، ومكيفات مركزية (Gainable).
+📦 الأجهزة المتوفرة (Climatiseurs):
+• الأنواع: متوفر لدينا مكيفات عادية (Split) ومكيفات مركزية مخفية (Gainable).
+• الماركات: TCL, Carrier, LG, Daikool, CIAT, Midea.
+• أمثلة لبعض الأثمنة (بالنسبة لمكيفات Split):
+  - DAIKOOL 9000 BTU Inverter – 3 300 DH | 12000 BTU – 4 000 DH
+  - PROMO: DAIKOOL 9000 BTU – 3 999 DH (شامل التركيب + النحاس + السيبور)
+  - CIAT 9000 BTU Inverter – 3 800 DH | 12000 BTU – 4 300 DH
+  - TCL 9000 BTU ON/OFF – 3 200 DH | 12000 BTU – 4 000 DH
 
 🔩 الأكسسوارات:
 • Télécommandes (تيليكوماند)، أنابيب نحاس، Supports، Gaz (R410A, R32...).
