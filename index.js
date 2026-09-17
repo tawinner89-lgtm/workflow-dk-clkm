@@ -513,6 +513,7 @@ const client = new Client({
       "--no-default-browser-check",
       "--disable-background-networking",
     ],
+    protocolTimeout: 120000,
   },
 });
 
@@ -699,9 +700,8 @@ client.on("message", async (msg) => {
           );
         } catch (innerErr) {
           console.error("[AI DEBOUNCE ERR]", innerErr.message);
-          await msg
-            .reply("عذراً، وقع مشكل تقني. حاول مرة أخرى من بعد.")
-            .catch(() => {});
+          // We removed the "مشكل تقني" message because if Puppeteer times out during msg.reply(),
+          // the message actually went through, and we don't want to spam the user with an error.
         }
       }, 2000),
     ); // Wait 2000ms
