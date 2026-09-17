@@ -319,24 +319,15 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
         .replace(/<think>[\s\S]*/g, "")
         .trim();
     } catch (err) {
-      if (
-        (err.status === 429 ||
-          err.status === 503 ||
-          err.status === 402 ||
-          err.status === 401) &&
-        process.env.DEEPSEEK_API_KEY
-      ) {
-        console.warn(
-          `[GROQ] Error ${err.status} – Falling back instantly to DeepSeek!`,
-        );
+      console.warn(`[GROQ] Error: ${err.message} – Attempting Fallbacks...`);
+      
+      if (process.env.DEEPSEEK_API_KEY) {
         try {
           return await askDeepSeek(messages, maxTokens);
         } catch (dsErr) {
           console.error("[DEEPSEEK FALLBACK ERR]", dsErr.message);
           if (process.env.OPENROUTER_API_KEY) {
-            console.warn(
-              "[DEEPSEEK] Error – Falling back to OpenRouter (Qwen)!",
-            );
+            console.warn("[DEEPSEEK] Error – Falling back to OpenRouter (Qwen)!");
             try {
               return await askOpenRouter(messages, maxTokens);
             } catch (orErr) {
@@ -346,7 +337,8 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
         }
       }
 
-      const retry = err.status === 429 || err.status === 503;
+      // If all fallbacks fail, try to retry if it's a rate limit or server error
+      const retry = err.status === 429 || err.status === 503 || err.status >= 500;
       if (retry && attempt < retries) {
         const wait = attempt * 2000;
         console.warn(`[AI] retry ${attempt}/${retries} in ${wait}ms`);
