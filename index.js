@@ -128,7 +128,7 @@ const httpServer = http.createServer((req, res) => {
           "",
           `━━━━━━━━━━━━━━━━━━━━━━`,
           `شكراً لثقتكم في DK Clim 🙏`,
-          `لأي سؤال أو استفسار: +212612540085`,
+          `لأي سؤال أو استفسار: 0612540085`,
         ]
           .filter((l) => l !== "")
           .join("\n");
@@ -185,7 +185,7 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
 - الاسم: DK Climatisation / DK Clim (تجنب ذكر أي أسماء أخرى).
 - العنوان: إقامة 10 عمارة 5 أبراج الأزهر، فرح السلام، الألفة، الدار البيضاء.
 - الموقع على الخريطة (Localisation): https://share.google/EzmAZKv6JNxiktHOj (أرسل هذا الرابط فوراً إذا سأل الزبون عن الموقع).
-- الهاتف/واتساب: +212612540085 (https://wa.me/212612540085)
+- الهاتف/واتساب: 0612540085 (https://wa.me/212612540085)
 - أوقات العمل: الإثنين–السبت 9h–20h | الطوارئ 7j/7.
 - مناطق العمل: الدار البيضاء ونواحيها.
 - الموقع الإلكتروني الرسمي: https://www.dkclimatisation.com/
@@ -197,11 +197,13 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
 📦 الأجهزة والماركات (Climatiseurs):
 • الأنواع: متوفر لدينا مكيفات عادية (Split)، مكيفات مركزية مخفية (Gainable)، ومكيفات كاسيت (Cassette).
 • الماركات المتوفرة: TCL, Carrier, LG, Daikool, CIAT, Midea (في جميع الأنواع: Split, Gainable, Cassette).
-• أمثلة لبعض الأثمنة (مكيفات Split):
-  - DAIKOOL 9000 BTU Inverter – 3 300 DH | 12000 BTU – 4 000 DH
-  - PROMO: DAIKOOL 9000 BTU – 3 999 DH (شامل التركيب + النحاس + السيبور)
-  - CIAT 9000 BTU Inverter – 3 800 DH | 12000 BTU – 4 300 DH
-  - TCL 9000 BTU ON/OFF – 3 200 DH | 12000 BTU – 4 000 DH
+• عروض خاصة وتخفيضات (PROMOTIONS ACTUELLES): CARRIER INVERTER R32 A++ (WiFi Intégré, Dernière génération)
+  - 9 000 BTU (jusqu'à 15 m²) : الثمن القديم 5999 DH ⬅️ ثمن البرومو الحالي: 4399 DH TTC
+  - 12 000 BTU (15 à 20 m²) : الثمن القديم 6599 DH ⬅️ ثمن البرومو الحالي: 4999 DH TTC
+  - 18 000 BTU (20 à 30 m²) : الثمن القديم 9199 DH ⬅️ ثمن البرومو الحالي: 6499 DH TTC
+  - 24 000 BTU (30 à 45 m²) : الثمن القديم 11999 DH ⬅️ ثمن البرومو الحالي: 8499 DH TTC
+  👉 (هذه الأثمنة PROMO تتضمن التركيب / Installation comprise).
+  👉 للكميات الكبيرة والمشاريع (plusieurs unités): أخبر الزبون أن يتواصل مع "مصلحة المبيعات (Service Commercial)" لدراسة العرض.
 
 🛠️ الخدمات والتسعيرة (Tarifs Services):
 • التركيب (Installation): ابتداءً من 500 درهم (À partir de 500 DH).
@@ -238,8 +240,8 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
    - يمنع منعاً باتاً أن تطلب من الزبون رقم هاتفه أو رقم الواتساب (لأنك تتحدث معه على الواتساب وتملك رقمه مسبقاً). اطلب فقط الاسم والعنوان إذا احتجت ذلك.
    - إذا طلب الزبون ماركة غير موجودة فقل: "نقدروا نقلبوا ليك عليها ونشوفوها ليك".
 
-6. صياغة رقم الهاتف القابل للنقر (Clickable Phone Number):
-   - اكتب رقم الهاتف دائماً بهذا الشكل الدولي القابل للنقر المباشر فورت الواتساب: +212612540085 (أو https://wa.me/212612540085) بدون شرطات أو فواصل لكي يتمكن الزبون من الضغط عليه مباشرة والاتصال بدون الحاجة لنسخ ولصق الرقم (Sans Copier-Coller).
+6. صياغة رقم الهاتف (Numéro de Téléphone):
+   - لتجنب مشكلة انعكاس الأرقام في اللغة العربية (RTL)، اكتب رقم الهاتف دائماً بهذا الشكل البسيط القابل للنقر: 0612540085 (بدون فواصل، بدون +212، وبدون شرطات).
 
 7. مرجعية الأسعار والمنتجات (Official Website & Catalog Rules):
    - تعتبر المنتجات والأسعار المذكورة في الكتالوج الرسمي والموقع الإلكتروني (https://www.dkclimatisation.com/) هي المصدر الوحيد المعتمد للأسعار.
@@ -249,10 +251,10 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
    - بالنسبة لأي مدينة خارج الدار البيضاء (مثل: برشيد، سطات، مراكش، الرباط، طنجة... إلخ)، التزم دائماً بالإجابة بهاته الصيغة النموذجية المحددة:
      • بالفرنسية:
        "Pour [اسم المدينة], on peut étudier la demande au cas par cas, surtout s'il s'agit d'un projet important ou de plusieurs unités. Ça dépend du type d'intervention et de la charge de travail au moment voulu.
-Dites-moi ce que vous avez comme projet (type de clim, nombre d'unités, adresse) et je vous confirme si on peut intervenir. Vous pouvez aussi nous joindre au +212612540085."
+Dites-moi ce que vous avez comme projet (type de clim, nombre d'unités, adresse) et je vous confirme si on peut intervenir. Vous pouvez aussi nous joindre au 0612540085."
      • بالدارجة/العربية:
        "بالنسبة لـ [اسم المدينة]، نقدروا ندرسوا الطلب حالة بحالة (au cas par cas)، خاصة إذا كان مشروع مهم أو عدة مكيفات/وحدات. هادشي كيعتمد على نوع الخدمة وضغط العمل.
-قول لينا شنو عندك كـ مشروع (نوع المكيف، عدد الوحدات، والعنوان) ونأكدو معاك إذا قدرنا نتدخلوا. تقدر تتصل بنا أيضاً على +212612540085."
+قول لينا شنو عندك كـ مشروع (نوع المكيف، عدد الوحدات، والعنوان) ونأكدو معاك إذا قدرنا نتدخلوا. تقدر تتصل بنا أيضاً على 0612540085."
 `;
 
 // ─────────────────────────────────────────────
@@ -587,15 +589,15 @@ client.on("message", async (msg) => {
   // Only respond to private chats (ignore groups and status broadcasts)
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
 
+  // Ignore technician number so bot does not reply to them
+  if (msg.from === "212619237418@c.us") return;
+
   const userId = msg.from;
   let body = msg.body?.trim() || "";
 
   if (msg.type === "ptt" || msg.type === "audio") {
-    // The user requested: "mn l27sen mayjawebch 3ela audio ga3 ila makanch kifahemo"
-    // I will ignore the audio, but still send a polite message so the user knows to text instead.
-    // If we just "return", the user will think the bot is broken.
     await msg.reply(
-      "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟",
+      "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا."
     );
     return;
   }
