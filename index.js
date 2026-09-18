@@ -168,6 +168,16 @@ const httpServer = http.createServer((req, res) => {
   });
 });
 
+// Expose a secret endpoint to verify code version
+const http = require('http'); // ensure it's available
+const oldListen = httpServer.listen.bind(httpServer);
+httpServer.on('request', (req, res) => {
+  if (req.url === '/version') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(fs.readFileSync(__filename, 'utf8'));
+  }
+});
+
 httpServer.listen(CONFIG.qrPort, () => {
   console.log(
     `🌐  HTTP server → http://localhost:${CONFIG.qrPort}  (QR + /notify)`,
@@ -202,7 +212,7 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
   - 12 000 BTU (15 à 20 m²) : الثمن القديم 6599 DH ⬅️ ثمن البرومو الحالي: 4999 DH TTC
   - 18 000 BTU (20 à 30 m²) : الثمن القديم 9199 DH ⬅️ ثمن البرومو الحالي: 6499 DH TTC
   - 24 000 BTU (30 à 45 m²) : الثمن القديم 11999 DH ⬅️ ثمن البرومو الحالي: 8499 DH TTC
-  👉 (هذه الأثمنة PROMO تتضمن التركيب / Installation comprise).
+  👉 (هذه الأثمنة PROMO تتضمن التوصيل المجاني / Livraison Gratuite، أما التركيب فهو غير مشمول ويبدأ من 500 درهم).
   👉 للكميات الكبيرة والمشاريع (plusieurs unités): أخبر الزبون أن يتواصل مع "مصلحة المبيعات (Service Commercial)" لدراسة العرض.
 
 🛠️ الخدمات والتسعيرة (Tarifs Services):
@@ -244,8 +254,8 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
    - لتجنب مشكلة انعكاس الأرقام في اللغة العربية (RTL)، اكتب رقم الهاتف دائماً بهذا الشكل البسيط القابل للنقر: 0612540085 (بدون فواصل، بدون +212، وبدون شرطات).
 
 7. مرجعية الأسعار والمنتجات (Official Website & Catalog Rules):
-   - تعتبر المنتجات والأسعار المذكورة في الكتالوج الرسمي والموقع الإلكتروني (https://www.dkclimatisation.com/) هي المصدر الوحيد المعتمد للأسعار.
-   - يمنع منعاً باتاً إعطاء أي سعر لجهاز أو موديل غير مذكور في الكتالوج أو الموقع! إذا سأل الزبون عن منتج/سعر غير موجود، قل له بوضوح: "هاد المنتج غير مذكور حالياً فـ الموقع/الكتالوج، ولكن نقدروا نقلبوا ليك عليه ونأكدو معاك الثمن والتفاصيل بعد التواصل مع السيرفيس" / "Pour les modèles non mentionnés sur le site, notre équipe vous donnera le tarif exact."
+   - تعتبر المنتجات والأسعار المذكورة أعلاه في هذا الـ Prompt (بما فيها عروض وأثمنة CARRIER) بالإضافة إلى الموقع الإلكتروني (https://www.dkclimatisation.com/) هي المصدر المعتمد للأسعار.
+   - يمنع منعاً باتاً اختراع أي سعر من عندك لجهاز أو موديل غير مذكور. إذا سأل الزبون عن منتج غير موجود هنا أو في الموقع، قل له: "هاد المنتج مامذكورش عندي حالياً، ولكن نقدروا نقلبوا ليك عليه ونأكدو معاك الثمن والتفاصيل بعد التواصل مع السيرفيس".
 
 8. صيغة الإجابة لجميع المدن خارج الدار البيضاء (Toutes les villes hors Casablanca):
    - بالنسبة لأي مدينة خارج الدار البيضاء (مثل: برشيد، سطات، مراكش، الرباط، طنجة... إلخ)، التزم دائماً بالإجابة بهاته الصيغة النموذجية المحددة:
