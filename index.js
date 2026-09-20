@@ -559,8 +559,52 @@ client.on("qr", (qr) => {
   }
 });
 
-client.on("ready", () => {
-  console.log("✅ WhatsApp connected & ready!");
+// ── Reminder Job (Follow-up after 24h) ────────────────────────
+async function startReminderJob(client) {
+  setInterval(async () => {
+    try {
+      const query = `
+        WITH LastMessages AS (
+          SELECT phone, role, content, "createdAt",
+                 ROW_NUMBER() OVER(PARTITION BY phone ORDER BY "createdAt" DESC) as rn
+          FROM "BotMessage"
+        )
+        SELECT phone, content, "createdAt"
+        FROM LastMessages
+        WHERE rn = 1 
+          AND role = 'assistant'
+          AND "createdAt" >= NOW() - INTERVAL '48 hours'
+          AND "createdAt" <= NOW() - INTERVAL '24 hours'
+          AND content NOT LIKE '%واش مزال مهتم بالعروض ديالنا؟%';
+      `;
+      const res = await pool.query(query);
+      
+      for (const row of res.rows) {
+        if (row.phone.includes("619237418") || row.phone === CONFIG.adminPhone) continue;
+        
+        const reminderText = "سلام 👋، هادي مدة ماتواصلنا معاك! واش مزال مهتم بالعروض ديالنا ولا نقدر نعاونك فشي حاجة أخرى؟ نحن رهن الإشارة ديما 😊\n\nBonjour 👋, êtes-vous toujours intéressé par nos offres ou avez-vous besoin de plus d'informations ? Nous sommes à votre disposition 😊";
+        
+        try {
+          await client.sendMessage(row.phone, reminderText);
+          await pushMessage(row.phone, "assistant", reminderText);
+          console.log(`[REMINDER SENT] to ${row.phone}`);
+        } catch (e) {
+          console.error(`[REMINDER ERROR] failed to send to ${row.phone}`, e.message);
+        }
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    } catch (e) {
+      console.error("[REMINDER DB ERROR]", e.message);
+    }
+  }, 60 * 60 * 1000); // Check every 1 hour
+}
+
+client.on("ready", async () => {
+  console.log("✅ WhatsApp Client is READY!");
+  qrBrowserOpened = true; // Stop opening QR
+  
+  // Start the reminder job
+  startReminderJob(client);
 });
 
 // ─────────────────────────────────────────────
