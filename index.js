@@ -169,7 +169,6 @@ const httpServer = http.createServer((req, res) => {
 });
 
 // Expose a secret endpoint to verify code version
-const http = require('http'); // ensure it's available
 const oldListen = httpServer.listen.bind(httpServer);
 httpServer.on('request', (req, res) => {
   if (req.url === '/version') {
