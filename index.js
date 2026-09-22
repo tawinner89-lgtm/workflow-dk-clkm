@@ -572,9 +572,9 @@ async function startReminderJob(client) {
         FROM LastMessages
         WHERE rn = 1 
           AND role = 'assistant'
-          AND "createdAt" >= NOW() - INTERVAL '48 hours'
           AND "createdAt" <= NOW() - INTERVAL '24 hours'
-          AND content NOT LIKE '%واش مزال مهتم بالعروض ديالنا؟%';
+          AND content NOT LIKE '%واش مزال مهتم بالعروض ديالنا؟%'
+          AND content NOT LIKE '%êtes-vous toujours intéressé%';
       `;
       const res = await pool.query(query);
       
