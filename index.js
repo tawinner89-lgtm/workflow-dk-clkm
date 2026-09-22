@@ -392,6 +392,28 @@ async function pushMessage(userId, role, content) {
   }
 }
 
+async function setLeadStatus(phone, status) {
+  try {
+    await pool.query(
+      `INSERT INTO "LeadStatus" (phone, status, "updatedAt") 
+       VALUES ($1, $2, NOW()) 
+       ON CONFLICT (phone) DO UPDATE SET status = EXCLUDED.status, "updatedAt" = NOW()`,
+      [phone, status]
+    );
+  } catch (e) {
+    console.error("LeadStatus Update Error:", e.message);
+  }
+}
+
+async function getLeadStatus(phone) {
+  try {
+    const res = await pool.query('SELECT status FROM "LeadStatus" WHERE phone = $1', [phone]);
+    return res.rows.length > 0 ? res.rows[0].status : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ─────────────────────────────────────────────
 // Admin Dashboard Sync  (DK Clim Next.js app)
 // ─────────────────────────────────────────────
@@ -567,27 +589,14 @@ async function startReminderJob(client) {
           SELECT phone, role, content, "createdAt",
                  ROW_NUMBER() OVER(PARTITION BY phone ORDER BY "createdAt" DESC) as rn
           FROM "BotMessage"
-        ),
-        HandoffUsers AS (
-          SELECT DISTINCT phone
-          FROM "BotMessage"
-          WHERE role = 'assistant'
-            AND (
-              content LIKE '%قسم المواعيد%' OR
-              content LIKE '%service rendez-vous%' OR
-              content LIKE '%مصلحة المبيعات%' OR
-              content LIKE '%service commercial%'
-            )
         )
         SELECT l.phone, l.content, l."createdAt"
         FROM LastMessages l
-        LEFT JOIN HandoffUsers h ON l.phone = h.phone
+        JOIN "LeadStatus" s ON l.phone = s.phone
         WHERE l.rn = 1 
           AND l.role = 'assistant'
           AND l."createdAt" <= NOW() - INTERVAL '24 hours'
-          AND l.content NOT LIKE '%واش مزال مهتم بالعروض ديالنا؟%'
-          AND l.content NOT LIKE '%êtes-vous toujours intéressé%'
-          AND h.phone IS NULL;
+          AND s.status = 'NEW';
       `;
       const res = await pool.query(query);
       
@@ -599,6 +608,7 @@ async function startReminderJob(client) {
         try {
           await client.sendMessage(row.phone, reminderText);
           await pushMessage(row.phone, "assistant", reminderText);
+          await setLeadStatus(row.phone, "FOLLOW_UP");
           console.log(`[REMINDER SENT] to ${row.phone}`);
         } catch (e) {
           console.error(`[REMINDER ERROR] failed to send to ${row.phone}`, e.message);
@@ -751,6 +761,24 @@ client.on("message", async (msg) => {
 
           const reply = await askAI(aiMessages);
           await pushMessage(userId, "assistant", reply);
+
+          // Update Lead Status persistently
+          const currentStatus = await getLeadStatus(userId);
+          const replyLower = reply.toLowerCase();
+          
+          if (
+            currentStatus !== 'HANDED_OFF_TO_APPOINTMENT' && 
+            currentStatus !== 'HANDED_OFF_TO_COMMERCIAL' && 
+            currentStatus !== 'CLOSED'
+          ) {
+             if (replyLower.includes("قسم المواعيد") || replyLower.includes("service rendez-vous")) {
+                await setLeadStatus(userId, "HANDED_OFF_TO_APPOINTMENT");
+             } else if (replyLower.includes("مصلحة المبيعات") || replyLower.includes("service commercial") || replyLower.includes("service commercial")) {
+                await setLeadStatus(userId, "HANDED_OFF_TO_COMMERCIAL");
+             } else {
+                await setLeadStatus(userId, "NEW");
+             }
+          }
 
           if (chat) {
             try {
