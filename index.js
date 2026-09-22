@@ -567,14 +567,27 @@ async function startReminderJob(client) {
           SELECT phone, role, content, "createdAt",
                  ROW_NUMBER() OVER(PARTITION BY phone ORDER BY "createdAt" DESC) as rn
           FROM "BotMessage"
+        ),
+        HandoffUsers AS (
+          SELECT DISTINCT phone
+          FROM "BotMessage"
+          WHERE role = 'assistant'
+            AND (
+              content LIKE '%قسم المواعيد%' OR
+              content LIKE '%service rendez-vous%' OR
+              content LIKE '%مصلحة المبيعات%' OR
+              content LIKE '%service commercial%'
+            )
         )
-        SELECT phone, content, "createdAt"
-        FROM LastMessages
-        WHERE rn = 1 
-          AND role = 'assistant'
-          AND "createdAt" <= NOW() - INTERVAL '24 hours'
-          AND content NOT LIKE '%واش مزال مهتم بالعروض ديالنا؟%'
-          AND content NOT LIKE '%êtes-vous toujours intéressé%';
+        SELECT l.phone, l.content, l."createdAt"
+        FROM LastMessages l
+        LEFT JOIN HandoffUsers h ON l.phone = h.phone
+        WHERE l.rn = 1 
+          AND l.role = 'assistant'
+          AND l."createdAt" <= NOW() - INTERVAL '24 hours'
+          AND l.content NOT LIKE '%واش مزال مهتم بالعروض ديالنا؟%'
+          AND l.content NOT LIKE '%êtes-vous toujours intéressé%'
+          AND h.phone IS NULL;
       `;
       const res = await pool.query(query);
       
