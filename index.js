@@ -381,6 +381,32 @@ async function getHistory(userId) {
   }
 }
 
+function detectHandoff(reply) {
+  if (!reply) return null;
+  // Normalize hyphens/dashes to standard hyphen-minus for matching
+  const text = reply.toLowerCase().replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
+
+  // Exclude conditionals where the bot says "Once you give us info, we will transfer..."
+  const isConditional = /(منين توصلنا|من بعد ما توصلنا|once we have|dès que nous aurons reçu|si vous souhaitez.*transmettre|باش نقدر.*نشوفو|pour que nous puissions.*transmettre)/i.test(text);
+
+  // Must clearly indicate transmission/verification with the department as an action
+  const appointmentRegex = /(nous allons v[éèe]rifier.*service rendez-vous|transmis.*service rendez-vous|transmettre.*service rendez-vous|demande a .t. transmise.*rendez-vous|غادي نشوفو مع قسم المواعيد|تم تحويل.*قسم المواعيد|نأكدو معاك أقرب موعد)/i;
+  
+  // Must clearly indicate actual transmission to commercial (not just "vous pouvez contacter")
+  const commercialRegex = /(transmis.*service commercial|transf.rer.*service commercial|demande a .t. transmise.*commercial|تم تحويل.*مصلحة المبيعات|تم إرسال.*مصلحة المبيعات)/i;
+
+  if (appointmentRegex.test(text) && !isConditional) {
+    // Extra strictness: if it says "غادي نشوفو" but it's part of a conditional block, we already excluded it.
+    // If it's a direct confirmation, it passes.
+    return 'HANDED_OFF_TO_APPOINTMENT';
+  }
+  if (commercialRegex.test(text) && !isConditional) {
+    return 'HANDED_OFF_TO_COMMERCIAL';
+  }
+  
+  return null;
+}
+
 async function pushMessage(userId, role, content) {
   try {
     await pool.query(
@@ -764,17 +790,15 @@ client.on("message", async (msg) => {
 
           // Update Lead Status persistently
           const currentStatus = await getLeadStatus(userId);
-          const replyLower = reply.toLowerCase();
           
           if (
             currentStatus !== 'HANDED_OFF_TO_APPOINTMENT' && 
             currentStatus !== 'HANDED_OFF_TO_COMMERCIAL' && 
             currentStatus !== 'CLOSED'
           ) {
-             if (replyLower.includes("قسم المواعيد") || replyLower.includes("service rendez-vous")) {
-                await setLeadStatus(userId, "HANDED_OFF_TO_APPOINTMENT");
-             } else if (replyLower.includes("مصلحة المبيعات") || replyLower.includes("service commercial") || replyLower.includes("service commercial")) {
-                await setLeadStatus(userId, "HANDED_OFF_TO_COMMERCIAL");
+             const detectedHandoff = detectHandoff(reply);
+             if (detectedHandoff) {
+                await setLeadStatus(userId, detectedHandoff);
              } else {
                 await setLeadStatus(userId, "NEW");
              }
