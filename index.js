@@ -136,7 +136,7 @@ const httpServer = http.createServer((req, res) => {
         // Send via WhatsApp client (fire-and-forget, don't block response)
         setImmediate(async () => {
           try {
-            await client.sendMessage(waId, message);
+            await client.sendMessage(waId, BOT_WATERMARK + message);
             console.log(`✅ [NOTIFY] Sent to ${waId} for ${reference}`);
           } catch (e) {
             console.error(`[NOTIFY ERR] Could not send to ${waId}:`, e.message);
@@ -329,7 +329,7 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
         .trim();
     } catch (err) {
       console.warn(`[GROQ] Error: ${err.message} – Attempting Fallbacks...`);
-      
+
       if (process.env.DEEPSEEK_API_KEY) {
         try {
           return await askDeepSeek(messages, maxTokens);
@@ -381,6 +381,40 @@ async function getHistory(userId) {
   }
 }
 
+const BOT_WATERMARK = '\u200B';
+
+async function setBotActive(phone, isActive) {
+  try {
+    await pool.query(
+      `INSERT INTO "LeadStatus" (phone, status, is_bot_active, "updatedAt")
+       VALUES ($1, 'NEW', $2, NOW())
+       ON CONFLICT (phone) DO UPDATE SET is_bot_active = EXCLUDED.is_bot_active, "updatedAt" = NOW()`,
+      [phone, isActive]
+    );
+  } catch (e) {
+    console.error("is_bot_active Update Error:", e.message);
+  }
+}
+
+async function getBotActive(phone) {
+  try {
+    const res = await pool.query('SELECT is_bot_active FROM "LeadStatus" WHERE phone = $1', [phone]);
+    if (res.rows.length > 0) {
+      return res.rows[0].is_bot_active === false ? false : true;
+    }
+    return true;
+  } catch (e) {
+    return true;
+  }
+}
+
+function normalizePhone(phone) {
+  let cleaned = phone.replace(/[\s\-\+\(\)]/g, "");
+  if (cleaned.endsWith("@c.us")) cleaned = cleaned.slice(0, -5);
+  if (cleaned.startsWith("0") && cleaned.length === 10) cleaned = "212" + cleaned.slice(1);
+  return cleaned + "@c.us";
+}
+
 function detectHandoff(reply) {
   if (!reply) return null;
   // Normalize hyphens/dashes to standard hyphen-minus for matching
@@ -391,7 +425,7 @@ function detectHandoff(reply) {
 
   // Must clearly indicate transmission/verification with the department as an action
   const appointmentRegex = /(nous allons v[éèe]rifier.*service rendez-vous|transmis.*service rendez-vous|transmettre.*service rendez-vous|demande a .t. transmise.*rendez-vous|غادي نشوفو مع قسم المواعيد|تم تحويل.*قسم المواعيد|نأكدو معاك أقرب موعد)/i;
-  
+
   // Must clearly indicate actual transmission to commercial (not just "vous pouvez contacter")
   const commercialRegex = /(transmis.*service commercial|transf.rer.*service commercial|demande a .t. transmise.*commercial|تم تحويل.*مصلحة المبيعات|تم إرسال.*مصلحة المبيعات)/i;
 
@@ -403,7 +437,7 @@ function detectHandoff(reply) {
   if (commercialRegex.test(text) && !isConditional) {
     return 'HANDED_OFF_TO_COMMERCIAL';
   }
-  
+
   return null;
 }
 
@@ -421,8 +455,8 @@ async function pushMessage(userId, role, content) {
 async function setLeadStatus(phone, status) {
   try {
     await pool.query(
-      `INSERT INTO "LeadStatus" (phone, status, "updatedAt") 
-       VALUES ($1, $2, NOW()) 
+      `INSERT INTO "LeadStatus" (phone, status, "updatedAt")
+       VALUES ($1, $2, NOW())
        ON CONFLICT (phone) DO UPDATE SET status = EXCLUDED.status, "updatedAt" = NOW()`,
       [phone, status]
     );
@@ -619,20 +653,21 @@ async function startReminderJob(client) {
         SELECT l.phone, l.content, l."createdAt"
         FROM LastMessages l
         JOIN "LeadStatus" s ON l.phone = s.phone
-        WHERE l.rn = 1 
+        WHERE l.rn = 1
           AND l.role = 'assistant'
           AND l."createdAt" <= NOW() - INTERVAL '24 hours'
-          AND s.status = 'NEW';
+          AND s.status = 'NEW'
+          AND (s.is_bot_active IS NULL OR s.is_bot_active = true);
       `;
       const res = await pool.query(query);
-      
+
       for (const row of res.rows) {
         if (row.phone.includes("619237418") || row.phone === CONFIG.adminPhone) continue;
-        
+
         const reminderText = "سلام 👋، هادي مدة ماتواصلنا معاك! واش مزال مهتم بالعروض ديالنا ولا نقدر نعاونك فشي حاجة أخرى؟ نحن رهن الإشارة ديما 😊\n\nBonjour 👋, êtes-vous toujours intéressé par nos offres ou avez-vous besoin de plus d'informations ? Nous sommes à votre disposition 😊";
-        
+
         try {
-          await client.sendMessage(row.phone, reminderText);
+          await client.sendMessage(row.phone, BOT_WATERMARK + reminderText);
           await pushMessage(row.phone, "assistant", reminderText);
           await setLeadStatus(row.phone, "FOLLOW_UP");
           console.log(`[REMINDER SENT] to ${row.phone}`);
@@ -650,7 +685,7 @@ async function startReminderJob(client) {
 client.on("ready", async () => {
   console.log("✅ WhatsApp Client is READY!");
   qrBrowserOpened = true; // Stop opening QR
-  
+
   // Start the reminder job
   startReminderJob(client);
 });
@@ -678,8 +713,30 @@ async function getSystemPrompt() {
 }
 
 // ─────────────────────────────────────────────
-// Message Handler
+// Message Handlers
 // ─────────────────────────────────────────────
+
+client.on("message_create", async (msg) => {
+  if (!msg.fromMe) return; // incoming messages are handled by 'message' event
+
+  const userId = msg.to; // The customer's phone number
+  let body = msg.body || "";
+
+  if (body.startsWith(BOT_WATERMARK)) {
+    // BOT_OUTGOING
+    return;
+  }
+
+  // HUMAN_OUTGOING
+  body = body.replace(new RegExp(BOT_WATERMARK, 'g'), '').trim();
+
+  // Store the human message in BotMessage using role = "admin"
+  await pushMessage(userId, "admin", body);
+
+  // Mark the conversation as human-controlled
+  await setBotActive(userId, false);
+});
+
 client.on("message", async (msg) => {
   // Only respond to private chats (ignore groups and status broadcasts)
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
@@ -692,7 +749,7 @@ client.on("message", async (msg) => {
 
   if (msg.type === "ptt" || msg.type === "audio") {
     await msg.reply(
-      "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا."
+      BOT_WATERMARK + "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا."
     );
     return;
   }
@@ -718,8 +775,24 @@ client.on("message", async (msg) => {
     if (body.toLowerCase() === "مسح" || body.toLowerCase() === "clear") {
       await pool.query('DELETE FROM "BotRule"');
       await msg.reply(
-        "✅ تم مسح جميع القواعد الإضافية. البوت دابا رجع للحالة الأصلية ديالو.",
+        BOT_WATERMARK + "✅ تم مسح جميع القواعد الإضافية. البوت دابا رجع للحالة الأصلية ديالو."
       );
+      return;
+    }
+
+    if (body.toLowerCase().startsWith("/mute ")) {
+      const rawPhone = body.split(" ")[1].trim();
+      const targetPhone = normalizePhone(rawPhone);
+      await setBotActive(targetPhone, false);
+      await msg.reply(BOT_WATERMARK + `✅ Bot muted for ${targetPhone}`);
+      return;
+    }
+
+    if (body.toLowerCase().startsWith("/unmute ")) {
+      const rawPhone = body.split(" ")[1].trim();
+      const targetPhone = normalizePhone(rawPhone);
+      await setBotActive(targetPhone, true);
+      await msg.reply(BOT_WATERMARK + `✅ Bot unmuted for ${targetPhone}`);
       return;
     }
 
@@ -737,11 +810,11 @@ client.on("message", async (msg) => {
           [actualRule],
         );
         await msg.reply(
-          '✅ حفظت هاد المعلومة! البوت غادي يولي يطبقها مع أي كليان جديد من دابا الفوق.\n\n_(باش تمسح كاع القواعد، صيفط ليا كلمة "مسح")_',
+          BOT_WATERMARK + '✅ حفظت هاد المعلومة! البوت غادي يولي يطبقها مع أي كليان جديد من دابا الفوق.\n\n_(باش تمسح كاع القواعد، صيفط ليا كلمة "مسح")_'
         );
       } catch (e) {
         console.error("Failed to save rule", e.message);
-        await msg.reply("❌ وقع شي خطأ فـ السيرفر.");
+        await msg.reply(BOT_WATERMARK + "❌ وقع شي خطأ فـ السيرفر.");
       }
       return;
     }
@@ -754,6 +827,13 @@ client.on("message", async (msg) => {
   try {
     // 1. Save user message immediately
     await pushMessage(userId, "user", body);
+
+    // 1.5. Check if bot is active (Not handled by a human)
+    const isBotActive = await getBotActive(userId);
+    if (!isBotActive) {
+      console.log(`[MUTED] Ignored message from ${userId} because they are HUMAN_HANDLED.`);
+      return;
+    }
 
     // 2. Debounce logic (Anti-Spam / Wait 2 seconds before replying)
     if (!global.debounceTimers) global.debounceTimers = new Map();
@@ -790,10 +870,10 @@ client.on("message", async (msg) => {
 
           // Update Lead Status persistently
           const currentStatus = await getLeadStatus(userId);
-          
+
           if (
-            currentStatus !== 'HANDED_OFF_TO_APPOINTMENT' && 
-            currentStatus !== 'HANDED_OFF_TO_COMMERCIAL' && 
+            currentStatus !== 'HANDED_OFF_TO_APPOINTMENT' &&
+            currentStatus !== 'HANDED_OFF_TO_COMMERCIAL' &&
             currentStatus !== 'CLOSED'
           ) {
              const detectedHandoff = detectHandoff(reply);
@@ -810,7 +890,7 @@ client.on("message", async (msg) => {
             } catch (e) {}
           }
 
-          await msg.reply(reply);
+          await msg.reply(BOT_WATERMARK + reply);
           console.log(`[OUT] ${reply.slice(0, 100)}`);
 
           syncToAdmin(history, userId).catch((err) =>
