@@ -796,8 +796,15 @@ client.on("message", async (msg) => {
   let body = msg.body?.trim() || "";
 
   if (msg.type === "ptt" || msg.type === "audio") {
+    await pushMessage(userId, "user", "[Message Audio/Vocal]");
+    try {
+      await pool.query(
+        `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
+        [userId]
+      );
+    } catch(e) {}
     await msg.reply(
-      BOT_WATERMARK + "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا."
+      BOT_WATERMARK + "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا.\n\nDésolé, je ne peux pas écouter les messages vocaux pour le moment 😅 Pouvez-vous m'écrire ce que vous souhaitez ? Sinon, un membre de notre équipe vous répondra très vite."
     );
     return;
   }
@@ -828,17 +835,25 @@ client.on("message", async (msg) => {
       return;
     }
 
-    if (body.toLowerCase().startsWith("/mute ")) {
-      const rawPhone = body.split(" ")[1].trim();
-      const targetPhone = normalizePhone(rawPhone);
+    if (body.toLowerCase().startsWith("/mute")) {
+      const parts = body.split(" ");
+      if (parts.length < 2 || !parts[1].trim()) {
+        await msg.reply(BOT_WATERMARK + "❌ Format invalide. Utilisez /mute <numero>");
+        return;
+      }
+      const targetPhone = normalizePhone(parts[1].trim());
       await setBotActive(targetPhone, false);
       await msg.reply(BOT_WATERMARK + `✅ Bot muted for ${targetPhone}`);
       return;
     }
 
-    if (body.toLowerCase().startsWith("/unmute ")) {
-      const rawPhone = body.split(" ")[1].trim();
-      const targetPhone = normalizePhone(rawPhone);
+    if (body.toLowerCase().startsWith("/unmute")) {
+      const parts = body.split(" ");
+      if (parts.length < 2 || !parts[1].trim()) {
+        await msg.reply(BOT_WATERMARK + "❌ Format invalide. Utilisez /unmute <numero>");
+        return;
+      }
+      const targetPhone = normalizePhone(parts[1].trim());
       await setBotActive(targetPhone, true);
       await msg.reply(BOT_WATERMARK + `✅ Bot unmuted for ${targetPhone}`);
       return;
@@ -895,16 +910,22 @@ client.on("message", async (msg) => {
 
     // 2. Debounce logic (Anti-Spam / Wait 2 seconds before replying)
     if (!global.debounceTimers) global.debounceTimers = new Map();
-    if (global.debounceTimers.has(userId))
+    if (!global.isProcessing) global.isProcessing = new Map();
+    
+    if (global.debounceTimers.has(userId)) {
       clearTimeout(global.debounceTimers.get(userId));
+    }
 
-    global.debounceTimers.set(
-      userId,
-      setTimeout(async () => {
-        try {
-          global.debounceTimers.delete(userId);
+    const processMessageQueue = async () => {
+      if (global.isProcessing.get(userId)) {
+        global.debounceTimers.set(userId, setTimeout(processMessageQueue, 2000));
+        return;
+      }
+      try {
+        global.debounceTimers.delete(userId);
+        global.isProcessing.set(userId, true);
 
-          let chat = null;
+        let chat = null;
           try {
             chat = await msg.getChat();
             await chat.sendStateTyping();
@@ -956,11 +977,12 @@ client.on("message", async (msg) => {
           );
         } catch (innerErr) {
           console.error("[AI DEBOUNCE ERR]", innerErr.message);
-          // We removed the "مشكل تقني" message because if Puppeteer times out during msg.reply(),
-          // the message actually went through, and we don't want to spam the user with an error.
+        } finally {
+          global.isProcessing.set(userId, false);
         }
-      }, 2000),
-    ); // Wait 2000ms
+    };
+
+    global.debounceTimers.set(userId, setTimeout(processMessageQueue, 2000));
   } catch (err) {
     console.error("[MSG ERR]", err.message);
   }
