@@ -770,7 +770,9 @@ async function getSystemPrompt() {
 client.on("message_create", async (msg) => {
   if (!msg.fromMe) return; // incoming messages are handled by 'message' event
 
-  const userId = msg.to; // The customer's phone number
+  const contact = await msg.getContact();
+  const rawPhone = contact.number || msg.to.split('@')[0];
+  const userId = rawPhone + "@c.us"; // The customer's phone number
   let body = msg.body || "";
 
   if (body.startsWith(BOT_WATERMARK)) {
@@ -792,9 +794,24 @@ client.on("message", async (msg) => {
   // Only respond to private chats (ignore groups and status broadcasts)
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
 
+  const contact = await msg.getContact();
+  const rawPhone = contact.number || msg.from.split('@')[0];
+  const userId = rawPhone + "@c.us";
 
-  const userId = msg.from;
   let body = msg.body?.trim() || "";
+
+  // Commande d'urgence pour déboucher les vieux états
+  if (body.toLowerCase() === "/resetall") {
+    if (TEAM_NUMBERS.includes(rawPhone)) {
+      try {
+        await pool.query(`UPDATE "LeadStatus" SET is_bot_active = true`);
+        await msg.reply(BOT_WATERMARK + "✅ URGENCE : Tous les clients de la base de données ont été réactivés (is_bot_active = true).");
+      } catch (e) {
+        await msg.reply("❌ Erreur DB: " + e.message);
+      }
+    }
+    return;
+  }
 
   if (msg.type === "ptt" || msg.type === "audio") {
     await pushMessage(userId, "user", "[Message Audio/Vocal]");
