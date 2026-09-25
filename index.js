@@ -12,6 +12,9 @@ const path = require("path");
 const http = require("http");
 const { execSync } = require("child_process");
 
+const TEAM_NUMBERS = ["212669247744", "212619401129"];
+const ADMIN_SYSTEM_PROMPT = "Tu es l'assistant IA privé de la direction de DK Clim. Tu parles directement à ton patron. Ton rôle est d'accepter les modifications, d'obéir aux directives, et de répondre de manière exécutive et respectueuse (ex: 'Bien reçu chef, je prends note de cette consigne pour les prochains clients'). Tu communiques de manière concise et professionnelle.";
+
 // ─────────────────────────────────────────────
 // Startup: remove stale Chrome lockfile to prevent EBUSY crash
 // ─────────────────────────────────────────────
@@ -789,8 +792,6 @@ client.on("message", async (msg) => {
   // Only respond to private chats (ignore groups and status broadcasts)
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
 
-  // Ignore technician number so bot does not reply to them
-  if (msg.from === "212619237418@c.us") return;
 
   const userId = msg.from;
   let body = msg.body?.trim() || "";
@@ -925,6 +926,18 @@ client.on("message", async (msg) => {
         global.debounceTimers.delete(userId);
         global.isProcessing.set(userId, true);
 
+        // --- NOUVEAU FILTRE : Bloquer l'IA pour les clients clos (mais laisser passer les Boss) ---
+        const rawUserId = userId.split('@')[0];
+        const isTeamMember = TEAM_NUMBERS.includes(rawUserId);
+
+        if (!isTeamMember) {
+          const currentDbStatus = await getLeadStatus(userId);
+          if (currentDbStatus === 'CLOSED' || currentDbStatus === 'HANDED_OFF_TO_APPOINTMENT') {
+            return; // Silence radio pour le client dont le dossier est clos
+          }
+        }
+        // -----------------------------------------------------------------------------------------
+
         let chat = null;
           try {
             chat = await msg.getChat();
@@ -939,8 +952,11 @@ client.on("message", async (msg) => {
           // Fetch history (will include ALL messages sent during the 2s window)
           const history = await getHistory(userId);
 
+          // --- BASCULE DU SYSTEM PROMPT ---
+          const sysPrompt = isTeamMember ? ADMIN_SYSTEM_PROMPT : await getSystemPrompt();
+
           const aiMessages = [
-            { role: "system", content: await getSystemPrompt() },
+            { role: "system", content: sysPrompt },
             ...history,
           ];
 
