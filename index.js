@@ -671,12 +671,9 @@ async function startReminderJob(client) {
         WHERE l.rn = 1
           AND l.role = 'assistant'
           AND s.status IN ('NEW', 'FOLLOW_UP')
-          AND (s.is_bot_active IS NULL OR s.is_bot_active = true)
-          AND (
-            (COALESCE(s.reminder_count, 0) = 0 AND l."createdAt" <= NOW() - INTERVAL '24 hours')
-            OR
-            (s.reminder_count = 1 AND s.last_reminder_at <= NOW() - INTERVAL '48 hours')
-          );
+                    AND (s.is_bot_active IS NULL OR s.is_bot_active = true)
+          AND (COALESCE(s.reminder_count, 0) = 0)
+          AND l."createdAt" <= NOW() - INTERVAL '24 hours';
       `;
       const res = await pool.query(query);
 
@@ -796,6 +793,19 @@ client.on("message", async (msg) => {
       try {
         await pool.query(`UPDATE "LeadStatus" SET is_bot_active = true`);
         await msg.reply(BOT_WATERMARK + "✅ URGENCE : Tous les clients de la base de données ont été réactivés (is_bot_active = true).");
+      } catch (e) {
+        await msg.reply("❌ Erreur DB: " + e.message);
+      }
+    }
+    return;
+  }
+
+  // Commande d'urgence pour purger les anciens leads et bloquer les rappels existants
+  if (body.toLowerCase() === "/purge") {
+    if (TEAM_NUMBERS.includes(rawPhone)) {
+      try {
+        await pool.query(`UPDATE "LeadStatus" SET reminder_count = 1, last_reminder_at = NOW() WHERE status IN ('NEW', 'FOLLOW_UP')`);
+        await msg.reply(BOT_WATERMARK + "✅ PURGE EFFECTUÉE : Tous les anciens clients sont exclus des futures relances (reminder_count = 1).");
       } catch (e) {
         await msg.reply("❌ Erreur DB: " + e.message);
       }
