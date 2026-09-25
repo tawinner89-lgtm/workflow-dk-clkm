@@ -781,8 +781,8 @@ client.on("message_create", async (msg) => {
   // Store the human message in BotMessage using role = "admin"
   await pushMessage(userId, "admin", body);
 
-  // Mark the conversation as human-controlled
-  await setBotActive(userId, false);
+  // L'auto-mute a été supprimé ici. Le bot reste actif.
+  // Seules les commandes /rdv, /close et /mute arrêteront le bot.
 });
 
 client.on("message", async (msg) => {
