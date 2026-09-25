@@ -12,7 +12,7 @@ const path = require("path");
 const http = require("http");
 const { execSync } = require("child_process");
 
-const TEAM_NUMBERS = ["212669247744", "212619401129"];
+const TEAM_NUMBERS = ["212669247744", "212619401129", "280998453498053"];
 const ADMIN_SYSTEM_PROMPT = "Tu es l'assistant IA privé de la direction de DK Clim. Tu parles directement à ton patron. Ton rôle est d'accepter les modifications, d'obéir aux directives, et de répondre de manière exécutive et respectueuse (ex: 'Bien reçu chef, je prends note de cette consigne pour les prochains clients'). Tu communiques de manière concise et professionnelle.";
 
 // ─────────────────────────────────────────────
