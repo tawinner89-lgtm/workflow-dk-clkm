@@ -364,6 +364,18 @@ const pool = new Pool({
   connectionString: process.env.DIRECT_URL,
 });
 
+// --- Automatic DB Migration (Safe for Deployment) ---
+async function initDB() {
+  try {
+    await pool.query(`ALTER TABLE "LeadStatus" ADD COLUMN IF NOT EXISTS reminder_count INTEGER DEFAULT 0`);
+    await pool.query(`ALTER TABLE "LeadStatus" ADD COLUMN IF NOT EXISTS last_reminder_at TIMESTAMP WITH TIME ZONE NULL`);
+    console.log("✅ DB schema verified (reminder_count added).");
+  } catch (e) {
+    console.error("DB Init Error:", e.message);
+  }
+}
+// initDB() will be called before client.initialize()
+
 const syncedUsers = new Map(); // userId → lastSyncTime
 
 async function getHistory(userId) {
@@ -640,7 +652,7 @@ client.on("qr", (qr) => {
   }
 });
 
-// ── Reminder Job (Follow-up after 24h) ────────────────────────
+// ── Reminder Job (Follow-up after 24h & 48h) ────────────────────────
 async function startReminderJob(client) {
   setInterval(async () => {
     try {
@@ -650,29 +662,65 @@ async function startReminderJob(client) {
                  ROW_NUMBER() OVER(PARTITION BY phone ORDER BY "createdAt" DESC) as rn
           FROM "BotMessage"
         )
-        SELECT l.phone, l.content, l."createdAt"
+        SELECT l.phone, l.content, l."createdAt", s.reminder_count, s.last_reminder_at, s.status
         FROM LastMessages l
         JOIN "LeadStatus" s ON l.phone = s.phone
         WHERE l.rn = 1
           AND l.role = 'assistant'
-          AND l."createdAt" <= NOW() - INTERVAL '24 hours'
-          AND s.status = 'NEW'
-          AND (s.is_bot_active IS NULL OR s.is_bot_active = true);
+          AND s.status IN ('NEW', 'FOLLOW_UP')
+          AND (s.is_bot_active IS NULL OR s.is_bot_active = true)
+          AND (
+            (COALESCE(s.reminder_count, 0) = 0 AND l."createdAt" <= NOW() - INTERVAL '24 hours')
+            OR
+            (s.reminder_count = 1 AND s.last_reminder_at <= NOW() - INTERVAL '48 hours')
+          );
       `;
       const res = await pool.query(query);
 
       for (const row of res.rows) {
         if (row.phone.includes("619237418") || row.phone === CONFIG.adminPhone) continue;
 
+        const currentCount = row.reminder_count || 0;
+        const lastMsgTime = row.createdAt;
+        const originalLastReminderAt = row.last_reminder_at;
+        const originalStatus = row.status;
+        const newCount = currentCount + 1;
+
+        // Atomic Claim/Lock to prevent concurrent duplicate reminders or race conditions
+        const claimRes = await pool.query(`
+          UPDATE "LeadStatus"
+          SET reminder_count = $1, last_reminder_at = NOW(), status = 'FOLLOW_UP', "updatedAt" = NOW()
+          WHERE phone = $2
+            AND (reminder_count = $3 OR (reminder_count IS NULL AND $3 = 0))
+            AND status IN ('NEW', 'FOLLOW_UP')
+            AND (is_bot_active IS NULL OR is_bot_active = true)
+            AND NOT EXISTS (
+               SELECT 1 FROM "BotMessage" WHERE phone = $2 AND role = 'user' AND "createdAt" > $4
+            )
+          RETURNING *;
+        `, [newCount, row.phone, currentCount, lastMsgTime]);
+
+        if (claimRes.rowCount === 0) {
+          // Another instance claimed it, OR customer replied recently, OR admin muted the bot
+          console.log(`[REMINDER SKIPPED] ${row.phone} already claimed or invalid state.`);
+          continue;
+        }
+
         const reminderText = "سلام 👋، هادي مدة ماتواصلنا معاك! واش مزال مهتم بالعروض ديالنا ولا نقدر نعاونك فشي حاجة أخرى؟ نحن رهن الإشارة ديما 😊\n\nBonjour 👋, êtes-vous toujours intéressé par nos offres ou avez-vous besoin de plus d'informations ? Nous sommes à votre disposition 😊";
 
         try {
           await client.sendMessage(row.phone, BOT_WATERMARK + reminderText);
           await pushMessage(row.phone, "assistant", reminderText);
-          await setLeadStatus(row.phone, "FOLLOW_UP");
-          console.log(`[REMINDER SENT] to ${row.phone}`);
+
+          console.log(`[REMINDER SENT] to ${row.phone} (Reminder #${newCount})`);
         } catch (e) {
           console.error(`[REMINDER ERROR] failed to send to ${row.phone}`, e.message);
+          // Revert claim if message failed to send, BUT only if customer hasn't reset it or admin hasn't changed status
+          await pool.query(`
+            UPDATE "LeadStatus"
+            SET reminder_count = $1, last_reminder_at = $2, status = $3
+            WHERE phone = $4 AND reminder_count = $5 AND status = 'FOLLOW_UP'
+          `, [currentCount, originalLastReminderAt, originalStatus, row.phone, newCount]);
         }
         await new Promise(r => setTimeout(r, 5000));
       }
@@ -825,10 +873,20 @@ client.on("message", async (msg) => {
   console.log(`\n[IN]  ${userId}: "${body.slice(0, 80)}"`);
 
   try {
-    // 1. Save user message immediately
+    // 1. Save user message immediately (Doing this FIRST strengthens Cron race-condition protection)
     await pushMessage(userId, "user", body);
 
-    // 1.5. Check if bot is active (Not handled by a human)
+    // 2. RESET reminder sequence upon customer message
+    try {
+      await pool.query(
+        `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
+        [userId]
+      );
+    } catch(e) {
+      console.error("Reset reminder error:", e.message);
+    }
+
+    // 2.5. Check if bot is active (Not handled by a human)
     const isBotActive = await getBotActive(userId);
     if (!isBotActive) {
       console.log(`[MUTED] Ignored message from ${userId} because they are HUMAN_HANDLED.`);
@@ -969,4 +1027,7 @@ process.on("unhandledRejection", (reason) => {
 // ─────────────────────────────────────────────
 // Boot
 // ─────────────────────────────────────────────
-client.initialize();
+(async () => {
+  await initDB();
+  client.initialize();
+})();
