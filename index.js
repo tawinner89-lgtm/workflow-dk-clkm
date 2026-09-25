@@ -734,8 +734,8 @@ client.on("ready", async () => {
   console.log("✅ WhatsApp Client is READY!");
   qrBrowserOpened = true; // Stop opening QR
 
-  // Start the reminder job
-  startReminderJob(client);
+  // Start the reminder job (DISABLED FOR SAFETY)
+  // startReminderJob(client);
 });
 
 // ─────────────────────────────────────────────
