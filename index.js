@@ -793,8 +793,12 @@ client.on("message_create", async (msg) => {
   // Store the human message in BotMessage using role = "admin"
   await pushMessage(userId, "admin", body);
 
-  // L'auto-mute a été supprimé ici. Le bot reste actif.
-  // Seules les commandes /rdv, /close et /mute arrêteront le bot.
+  // AUTO-MUTE: Le bot se met en sourdine quand l'admin répond manuellement
+  if (global.debounceTimers && global.debounceTimers.has(userId)) {
+    clearTimeout(global.debounceTimers.get(userId));
+    global.debounceTimers.delete(userId);
+  }
+  await setBotActive(userId, false);
 });
 
 client.on("message", async (msg) => {
@@ -848,7 +852,21 @@ client.on("message", async (msg) => {
   }
 
   if (msg.hasMedia) {
-    body = `[الزبون أرسل صورة أو فيديو] ${body}`;
+    if (!body) {
+      await pushMessage(userId, "user", "[Image/Vidéo sans texte]");
+      try {
+        await pool.query(
+          `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
+          [userId]
+        );
+      } catch(e) {}
+      await msg.reply(
+        BOT_WATERMARK + "عذراً، ما كنقدرش نشوف التصاور أو الفيديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا في أقرب وقت.\n\nDésolé, je ne peux pas voir les images ou vidéos pour le moment 😅 Pouvez-vous m'écrire ce que vous souhaitez ? Sinon, un membre de notre équipe vous répondra très vite."
+      );
+      return;
+    } else {
+      body = `[SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
+    }
   }
 
   if (body.length > 1000) {
