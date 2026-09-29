@@ -893,11 +893,7 @@ client.on("message", async (msg) => {
   if (!body.trim()) return;
 
   // ── Admin Learning Mode ──────────────────────────
-  const isAdmin =
-    userId === CONFIG.adminPhone ||
-    userId === "191396711506131@lid" ||
-    userId === "212669247744@c.us" ||
-    userId === "280998453498053@lid";
+  const isAdmin = TEAM_NUMBERS.includes(rawPhone);
 
   if (isAdmin) {
     if (body.toLowerCase() === "مسح" || body.toLowerCase() === "clear") {
