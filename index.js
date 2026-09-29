@@ -18,12 +18,50 @@ const { Pool } = require("pg");
 // ─────────────────────────────────────────────
 const BOT_WATERMARK = "\u200B";
 
-let TEAM_NUMBERS = [];
-try {
-  TEAM_NUMBERS = JSON.parse(fs.readFileSync("admins.json", "utf8"));
-} catch (e) {
-  TEAM_NUMBERS = ["212669247744", "212619401129", "280998453498053"];
+// Phone Normalization Utilities
+function normalizePhone(phone) {
+  if (!phone) return "";
+  let cleaned = String(phone).replace(/\D/g, "");
+  if (cleaned.startsWith("00212")) cleaned = "212" + cleaned.slice(5);
+  else if (cleaned.startsWith("0") && cleaned.length === 10)
+    cleaned = "212" + cleaned.slice(1);
+  else if (!cleaned.startsWith("212") && cleaned.length === 9)
+    cleaned = "212" + cleaned;
+  return cleaned + "@c.us";
 }
+
+function getRawPhone(phoneOrId) {
+  if (!phoneOrId) return "";
+  const phone = String(phoneOrId).split("@")[0];
+  let cleaned = phone.replace(/\D/g, "");
+  if (cleaned.startsWith("00212")) cleaned = "212" + cleaned.slice(5);
+  else if (cleaned.startsWith("0") && cleaned.length === 10)
+    cleaned = "212" + cleaned.slice(1);
+  else if (!cleaned.startsWith("212") && cleaned.length === 9)
+    cleaned = "212" + cleaned;
+  return cleaned;
+}
+
+const DEFAULT_ADMINS = (
+  process.env.ADMIN_NUMBERS
+    ? process.env.ADMIN_NUMBERS.split(",")
+    : ["212669247744", "212619401129", "280998453498053"]
+)
+  .map((s) => getRawPhone(s.trim()))
+  .filter(Boolean);
+
+let TEAM_NUMBERS = [...DEFAULT_ADMINS];
+
+// Optional local cache for development
+try {
+  if (fs.existsSync("admins.json")) {
+    const cached = JSON.parse(fs.readFileSync("admins.json", "utf8"));
+    if (Array.isArray(cached)) {
+      const cleanCached = cached.map((s) => getRawPhone(s)).filter(Boolean);
+      TEAM_NUMBERS = Array.from(new Set([...TEAM_NUMBERS, ...cleanCached]));
+    }
+  }
+} catch (_) {}
 
 const ADMIN_SYSTEM_PROMPT =
   "Tu es l'assistant IA privé de la direction de DK Clim. Tu parles directement à ton patron. Ton rôle est d'accepter les modifications, d'obéir aux directives, et de répondre de manière exécutive et respectueuse (ex: 'Bien reçu chef, je prends note de cette consigne pour les prochains clients'). Tu communiques de manière concise et professionnelle.";
@@ -38,6 +76,7 @@ const CONFIG = {
     process.env.ADMIN_WEBHOOK_URL ||
     "http://localhost:3001/api/webhook/make?token=dkclim-ia-2026",
   notifyToken: process.env.WEBHOOK_SECRET || "dkclim-ia-2026",
+  adminPassword: process.env.ADMIN_PASSWORD || "dkclim2026",
   debounceDelay: 3000,
 };
 
@@ -104,42 +143,38 @@ async function initDB() {
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "BotAdmin" (
+        phone VARCHAR(255) PRIMARY KEY,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
     await pool.query(
       `ALTER TABLE "LeadStatus" ADD COLUMN IF NOT EXISTS reminder_count INTEGER DEFAULT 0`
     );
     await pool.query(
       `ALTER TABLE "LeadStatus" ADD COLUMN IF NOT EXISTS last_reminder_at TIMESTAMP WITH TIME ZONE NULL`
     );
-    console.log("✅ DB schema verified and initialized.");
+
+    // Seed default admins in database
+    for (const adminNum of DEFAULT_ADMINS) {
+      await pool.query(
+        `INSERT INTO "BotAdmin" (phone, "createdAt") VALUES ($1, NOW()) ON CONFLICT (phone) DO NOTHING`,
+        [adminNum]
+      );
+    }
+
+    // Load active admins from database
+    const adminRows = await pool.query('SELECT phone FROM "BotAdmin"');
+    const dbAdmins = adminRows.rows.map((r) => r.phone);
+    TEAM_NUMBERS = Array.from(new Set([...DEFAULT_ADMINS, ...dbAdmins]));
+
+    console.log(
+      `✅ DB schema verified and initialized. Active admins: ${TEAM_NUMBERS.length}`
+    );
   } catch (e) {
     console.error("DB Init Error:", e.message);
   }
-}
-
-// ─────────────────────────────────────────────
-// Phone Normalization Utilities
-// ─────────────────────────────────────────────
-function normalizePhone(phone) {
-  if (!phone) return "";
-  let cleaned = String(phone).replace(/\D/g, "");
-  if (cleaned.startsWith("00212")) cleaned = "212" + cleaned.slice(5);
-  else if (cleaned.startsWith("0") && cleaned.length === 10)
-    cleaned = "212" + cleaned.slice(1);
-  else if (!cleaned.startsWith("212") && cleaned.length === 9)
-    cleaned = "212" + cleaned;
-  return cleaned + "@c.us";
-}
-
-function getRawPhone(phoneOrId) {
-  if (!phoneOrId) return "";
-  const phone = String(phoneOrId).split("@")[0];
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.startsWith("00212")) cleaned = "212" + cleaned.slice(5);
-  else if (cleaned.startsWith("0") && cleaned.length === 10)
-    cleaned = "212" + cleaned.slice(1);
-  else if (!cleaned.startsWith("212") && cleaned.length === 9)
-    cleaned = "212" + cleaned;
-  return cleaned;
 }
 
 // ─────────────────────────────────────────────
@@ -213,6 +248,16 @@ const httpServer = http.createServer((req, res) => {
         }
 
         const waId = normalizePhone(phone);
+        if (!waId || waId.length <= 5 || !waId.endsWith("@c.us")) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: "Numéro de téléphone invalide",
+            })
+          );
+          return;
+        }
 
         let workList = "";
         try {
@@ -451,6 +496,16 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
 // ─────────────────────────────────────────────
 const syncedUsers = new Map(); // userId → lastSyncTime
 
+// Prune syncedUsers memory periodically (every 1 hour)
+setInterval(() => {
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  for (const [uid, timestamp] of syncedUsers.entries()) {
+    if (timestamp < oneDayAgo) {
+      syncedUsers.delete(uid);
+    }
+  }
+}, 60 * 60 * 1000);
+
 async function getHistory(userId) {
   try {
     const res = await pool.query(
@@ -627,6 +682,10 @@ async function syncToAdmin(history, userId) {
 
   try {
     const res = await axios.post(CONFIG.adminWebhookUrl, payload, {
+      headers: {
+        Authorization: `Bearer ${CONFIG.notifyToken}`,
+        "Content-Type": "application/json",
+      },
       timeout: 6000,
     });
     if (res.data?.success) {
@@ -761,6 +820,8 @@ const isProcessing = new Map();
 
 client.on("message_create", async (msg) => {
   if (!msg.fromMe) return;
+  // Ignore group messages and broadcast channels
+  if (!msg.to || msg.to === "status@broadcast" || msg.to.includes("@g.us")) return;
 
   const contact = await msg.getContact();
   const rawPhone = contact.number || getRawPhone(msg.to);
@@ -795,10 +856,21 @@ client.on("message", async (msg) => {
   let body = msg.body?.trim() || "";
 
   // Dynamic admin login
-  if (body === "/login dkclim2026") {
+  const expectedPassword = CONFIG.adminPassword;
+  if (body.toLowerCase() === `/login ${expectedPassword}`.toLowerCase()) {
     if (!TEAM_NUMBERS.includes(rawPhone)) {
       TEAM_NUMBERS.push(rawPhone);
-      fs.writeFileSync("admins.json", JSON.stringify(TEAM_NUMBERS));
+      try {
+        await pool.query(
+          `INSERT INTO "BotAdmin" (phone, "createdAt") VALUES ($1, NOW()) ON CONFLICT (phone) DO NOTHING`,
+          [rawPhone]
+        );
+      } catch (err) {
+        console.error("Failed to persist admin to DB:", err.message);
+      }
+      try {
+        fs.writeFileSync("admins.json", JSON.stringify(TEAM_NUMBERS));
+      } catch (_) {}
       await msg.reply(
         BOT_WATERMARK +
           "✅ كلمة السر صحيحة! تمت إضافتك كأدمن بنجاح. البوت دابا كيعرفك."
@@ -991,12 +1063,10 @@ client.on("message", async (msg) => {
         const rawUserId = getRawPhone(userId);
         const isTeamMember = TEAM_NUMBERS.includes(rawUserId);
 
+        // Only closed deals are silenced automatically; human takeover is handled by isBotActive
         if (!isTeamMember) {
           const currentDbStatus = await getLeadStatus(userId);
-          if (
-            currentDbStatus === "CLOSED" ||
-            currentDbStatus === "HANDED_OFF_TO_APPOINTMENT"
-          ) {
+          if (currentDbStatus === "CLOSED") {
             return;
           }
         }
@@ -1057,7 +1127,7 @@ client.on("message", async (msg) => {
       } catch (innerErr) {
         console.error("[AI DEBOUNCE ERR]", innerErr.message);
       } finally {
-        isProcessing.set(userId, false);
+        isProcessing.delete(userId);
       }
     };
 
@@ -1075,7 +1145,7 @@ client.on("message", async (msg) => {
 // ─────────────────────────────────────────────
 client.on("disconnected", (reason) => {
   console.error("[DISCONNECTED]", reason, "– exiting for restart");
-  if (reason === "LOGOUT" || reason === "NAVIGATION") {
+  if (reason === "LOGOUT") {
     try {
       console.log("User logged out. Clearing auth cache...");
       fs.rmSync(path.join(__dirname, ".wwebjs_auth"), {
