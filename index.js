@@ -1069,9 +1069,9 @@ client.on("message", async (msg) => {
         }
     };
 
-    const isTeamUser2 = TEAM_NUMBERS.includes(userId.split('@')[0]);
-    const delay2 = isTeamUser2 ? 2000 : (5 * 60 * 1000);
-    global.debounceTimers.set(userId, setTimeout(processMessageQueue, delay2));
+    const isTeamUser = TEAM_NUMBERS.includes(userId.split('@')[0]);
+    const delay = isTeamUser ? 2000 : (5 * 60 * 1000); // 5-minute wait for normal users
+    global.debounceTimers.set(userId, setTimeout(processMessageQueue, delay));
   } catch (err) {
     console.error("[MSG ERR]", err.message);
   }
