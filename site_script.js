@@ -1,4 +1,4 @@
-﻿ï»¿const navToggle = document.querySelector(".nav-toggle");
+const navToggle = document.querySelector(".nav-toggle");
 const siteNav = document.querySelector(".site-nav");
 
 if (navToggle && siteNav) {
@@ -65,7 +65,7 @@ const faqPairs = [
   { q: ["horaires", "heure", "ouverture"], a: "Horaires : LunâSam 9h00â19h00. Urgences : 7j/7." },
   { q: ["pompe", "pac", "air/air"], a: "Nous installons et entretenons les pompes Ã  chaleur air/air." },
   { q: ["marques", "matÃ©riel", "materiel"], a: "Nous travaillons avec des marques reconnues pour leur fiabilitÃ© et performance." },
-  q: ["Adresse", "localisation", "showroom"], a: "Notre adresse : Imm 10 M5 Abraj Azhar Farah Essalm - Oulfa - Casablanca (Voir localisation)" },
+  { q: ["Adresse", "localisation", "showroom"], a: "Notre adresse : Imm 10 M5 Abraj Azhar Farah Essalm - Oulfa - Casablanca (Voir localisation)" },
   { q: ["contact", "email", "mail"], a: "Vous pouvez nous Ã©crire Ã  dkclimatisation@gmail.com ou appeler le 0612-54-00-85." },
   { q: ["devis", "estimation", "devis gratuit"], a: "Pour un devis gratuit , merci de nous Ã©crire Ã  dkclimatisation@gmail.com ou appeler le 0612-54-00-85." }
 ];
