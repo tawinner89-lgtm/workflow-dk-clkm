@@ -777,12 +777,13 @@ client.on("message_create", async (msg) => {
   // Store the human message in BotMessage using role = "admin"
   await pushMessage(userId, "admin", body);
 
-  // AUTO-CANCEL: L'admin a répondu manuellement dans les 5 minutes
+  // AUTO-MUTE: L'admin a répondu manuellement -> Le bot se tait définitivement pour ce client
   if (global.debounceTimers && global.debounceTimers.has(userId)) {
     clearTimeout(global.debounceTimers.get(userId));
     global.debounceTimers.delete(userId);
-    console.log("[AUTO-CANCEL] L'admin a répondu manuellement. Annulation de la réponse IA en attente pour " + userId);
   }
+  await setBotActive(userId, false);
+  console.log("[AUTO-MUTE] L'admin a répondu au client. Le bot ne répondra plus pour " + userId);
 });
 
 client.on("message", async (msg) => {
@@ -967,7 +968,7 @@ client.on("message", async (msg) => {
     const processMessageQueue = async () => {
       if (global.isProcessing.get(userId)) {
         const isTeamUser = TEAM_NUMBERS.includes(userId.split('@')[0]);
-    const delay = isTeamUser ? 2000 : (5 * 60 * 1000); // 2s pour les boss, 5 mins pour les clients
+    const delay = 3000; // Réponse rapide (3 secondes debounce)
     global.debounceTimers.set(userId, setTimeout(processMessageQueue, delay));
         return;
       }
@@ -1048,7 +1049,7 @@ client.on("message", async (msg) => {
     };
 
     const isTeamUser = TEAM_NUMBERS.includes(userId.split('@')[0]);
-    const delay = isTeamUser ? 2000 : (5 * 60 * 1000); // 5-minute wait for normal users
+    const delay = 3000; // Réponse rapide (3 secondes debounce)
     global.debounceTimers.set(userId, setTimeout(processMessageQueue, delay));
   } catch (err) {
     console.error("[MSG ERR]", err.message);
