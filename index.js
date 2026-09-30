@@ -650,7 +650,7 @@ async function syncToAdmin(history, userId) {
     "IMPORTANT: ONLY extract a booking if the client explicitly requested or confirmed it in the VERY LAST messages.",
     'If the client is just asking random questions, OR if the booking was already finalized earlier and they moved on to casual talk, return {"hasBooking":false}.',
     "If they JUST provided BOTH their full name AND their address to book an intervention, return ONLY a single-line JSON:",
-    '{"hasBooking":true,"clientName":"full name","clientAddress":"address","problemReported":"summary","type":"Installation"}',
+    '{"hasBooking":true,"clientName":"full name","clientAddress":"address","clientContactPhone":"optional phone","proposedTime":"optional date/time or null","problemReported":"summary","type":"Installation"}',
     'If not enough info yet, or if it is an old topic, return ONLY: {"hasBooking":false}',
     "IMPORTANT: Return ONLY the JSON object, nothing else.",
     "",
@@ -675,7 +675,9 @@ async function syncToAdmin(history, userId) {
 
   if (!data.hasBooking || !data.clientName || !data.clientAddress) return;
 
-  const phone = data.clientContactPhone || getRawPhone(userId);
+  let rawExtractedPhone = data.clientContactPhone || getRawPhone(userId);
+  let digitCount = String(rawExtractedPhone).replace(/\D/g, "").length;
+  const phone = (digitCount >= 9 && digitCount <= 14) ? rawExtractedPhone : "Non fourni";
 
   let assignedTech = null;
   try {
@@ -695,6 +697,7 @@ async function syncToAdmin(history, userId) {
     clientName: data.clientName.trim(),
     clientAddress: data.clientAddress.trim(),
     clientContactPhone: phone,
+    proposedTime: data.proposedTime || null,
     problemReported: data.problemReported || "Demande via WhatsApp Bot",
     type: data.type || "Installation",
     technicianName: assignedTech ? assignedTech.name : "À assigner (Bot)",
@@ -716,13 +719,18 @@ async function syncToAdmin(history, userId) {
 
       if (assignedTech && assignedTech.phone) {
         const techChatId = normalizePhone(assignedTech.phone);
+        let timeSuffix = `_Merci de contacter le client pour confirmer l'heure de visite._`;
+        if (payload.proposedTime) {
+          timeSuffix = `🕐 *Créneau proposé:* ${payload.proposedTime} — À CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilité du créneau._`;
+        }
+
         const notifMsg =
           `🚨 *NOUVELLE INTERVENTION ASSIGNÉE* 🚨\n\n` +
           `👤 *Client:* ${payload.clientName}\n` +
           `📍 *Adresse:* ${payload.clientAddress}\n` +
           `📞 *Téléphone:* ${payload.clientContactPhone}\n` +
           `🔧 *Problème/Type:* ${payload.problemReported} (${payload.type})\n\n` +
-          `_Merci de contacter le client pour confirmer l'heure de visite._`;
+          timeSuffix;
 
         client
           .sendMessage(techChatId, BOT_WATERMARK + notifMsg)
