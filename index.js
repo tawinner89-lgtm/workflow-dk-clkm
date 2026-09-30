@@ -964,7 +964,7 @@ client.on("message", async (msg) => {
       );
     } catch (_) {}
     await msg.reply(
-      BOT_WATERMARK + "مرحبا، شي واحد من الفريق غادي يسمع الأوديو ديالك ويجاوبك فأقرب وقت."
+      BOT_WATERMARK + "مرحبا، شي واحد من الفريق غادي يسمع الأوديو ديالك ويجاوبك فأقرب وقت.\n\nBonjour, un membre de notre équipe écoutera votre audio et vous répondra dans les plus brefs délais."
     );
     return;
   }
@@ -980,7 +980,7 @@ client.on("message", async (msg) => {
         );
       } catch (_) {}
       await msg.reply(
-        BOT_WATERMARK + "مرحبا، شي واحد من الفريق التقني غادي يشوف هادشي ويجاوبك فأقرب وقت."
+        BOT_WATERMARK + "مرحبا، شي واحد من الفريق التقني غادي يشوف هادشي ويجاوبك فأقرب وقت.\n\nBonjour, un membre de notre équipe technique examinera ceci et vous répondra dans les plus brefs délais."
       );
       return;
     } else {
