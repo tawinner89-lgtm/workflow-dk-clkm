@@ -846,34 +846,42 @@ const debounceTimers = new Map();
 const isProcessing = new Map();
 
 client.on("message_create", async (msg) => {
-  if (!msg.fromMe) return;
-  // Ignore group messages and broadcast channels
-  if (!msg.to || msg.to === "status@broadcast" || msg.to.includes("@g.us")) return;
+  try {
+    if (!msg.fromMe) return;
+    // Ignore group messages and broadcast channels
+    if (!msg.to || msg.to === "status@broadcast" || msg.to.includes("@g.us")) return;
 
-  const contact = await msg.getContact();
-  const rawPhone = contact.number || getRawPhone(msg.to);
-  const userId = normalizePhone(rawPhone);
-  const body = msg.body || "";
+    let rawPhone = getRawPhone(msg.to);
+    try {
+      const contact = await msg.getContact();
+      if (contact && contact.number) rawPhone = contact.number;
+    } catch (e) {
+      console.warn("[WARN] getContact failed in message_create, falling back to msg.to");
+    }
+    const userId = normalizePhone(rawPhone);
+    const body = msg.body || "";
 
-  // Ignore bot's own messages (watermarked)
-  if (body.startsWith(BOT_WATERMARK)) {
-    return;
+    // Ignore bot's own messages (watermarked)
+    if (body.startsWith(BOT_WATERMARK)) {
+      return;
+    }
+
+    // AUTO-MUTE: Human agent took over conversation
+    if (debounceTimers.has(userId)) {
+      clearTimeout(debounceTimers.get(userId));
+      debounceTimers.delete(userId);
+    }
+    
+    // Also explicitly mark it as not processing anymore to kill any pending queue
+    isProcessing.delete(userId);
+
+    await setBotActive(userId, false);
+    console.log(
+      `[AUTO-MUTE] Admin replied manually. Bot silenced for ${userId}`
+    );
+  } catch (err) {
+    console.error("[ERROR] message_create event crashed:", err.message);
   }
-
-  // ⚠️ DO NOT store admin messages in BotMessage history.
-  // Admin messages may contain sensitive info (IBAN, internal notes, prices...)
-  // that the AI would then repeat to customers in future messages.
-  // The ONLY purpose of this event is to trigger Auto-Mute.
-
-  // AUTO-MUTE: Human agent took over conversation
-  if (debounceTimers.has(userId)) {
-    clearTimeout(debounceTimers.get(userId));
-    debounceTimers.delete(userId);
-  }
-  await setBotActive(userId, false);
-  console.log(
-    `[AUTO-MUTE] Admin replied manually. Bot silenced for ${userId}`
-  );
 });
 
 client.on("message", async (msg) => {
@@ -1193,6 +1201,11 @@ client.on("message", async (msg) => {
           return;
         }
         // ────────────────────────────────────────────────────────────────
+
+        if (!reply || reply.trim() === "") {
+          console.error(`[EMPTY-GUARD] AI returned an empty message. Discarding.`);
+          return;
+        }
 
         try {
           await msg.reply(BOT_WATERMARK + reply);
