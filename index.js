@@ -853,14 +853,17 @@ client.on("message_create", async (msg) => {
   const contact = await msg.getContact();
   const rawPhone = contact.number || getRawPhone(msg.to);
   const userId = normalizePhone(rawPhone);
-  let body = msg.body || "";
+  const body = msg.body || "";
 
+  // Ignore bot's own messages (watermarked)
   if (body.startsWith(BOT_WATERMARK)) {
     return;
   }
 
-  body = body.replace(new RegExp(BOT_WATERMARK, "g"), "").trim();
-  await pushMessage(userId, "admin", body);
+  // ⚠️ DO NOT store admin messages in BotMessage history.
+  // Admin messages may contain sensitive info (IBAN, internal notes, prices...)
+  // that the AI would then repeat to customers in future messages.
+  // The ONLY purpose of this event is to trigger Auto-Mute.
 
   // AUTO-MUTE: Human agent took over conversation
   if (debounceTimers.has(userId)) {
@@ -869,7 +872,7 @@ client.on("message_create", async (msg) => {
   }
   await setBotActive(userId, false);
   console.log(
-    `[AUTO-MUTE] L'admin a répondu manuellement. Le bot ne répondra plus pour ${userId}`
+    `[AUTO-MUTE] Admin replied manually. Bot silenced for ${userId}`
   );
 });
 
