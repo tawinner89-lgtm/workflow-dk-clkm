@@ -1152,6 +1152,30 @@ client.on("message", async (msg) => {
           } catch (_) {}
         }
 
+        // ── Sensitive content safety filter ─────────────────────────────
+        // Block any reply that contains banking info, IBAN, passwords, etc.
+        const sensitivePatterns = [
+          /\bIBAN\b/i,
+          /MA\d{2}[\s\d]{20,}/,          // IBAN format MA00 0001 2345...
+          /\bRIB\b/i,
+          /\bcode\s+secret\b/i,
+          /\bmot\s+de\s+passe\b/i,
+          /\bpassword\b/i,
+          /كلمة\s+السر/,
+          /البنك\s+الشعبي/,
+          /virement\s+bancaire/i,
+          /coordonnées\s+bancaires/i,
+        ];
+        const isSensitive = sensitivePatterns.some((p) => p.test(reply));
+        if (isSensitive) {
+          console.error(
+            `[CONTENT-FILTER] Blocked sensitive reply to ${userId}: ${reply.slice(0, 80)}`
+          );
+          // Don't send – silently drop
+          return;
+        }
+        // ────────────────────────────────────────────────────────────────
+
         try {
           await msg.reply(BOT_WATERMARK + reply);
         } catch (replyErr) {
