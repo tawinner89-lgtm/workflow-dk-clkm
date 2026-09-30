@@ -399,10 +399,13 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
 - لا تكن جافاً أو روبوتياً، ولا تبالغ في تكرار "سيدي" بشكل غير طبيعي.
 
 1️⃣ بوابة تحديد الطلب (INTENT GATE - STRICT):
-لا تدخل في أي مسار ولا تقترح أي ثمن أبداً إلا إذا كان طلب الزبون واضحاً 100%. إذا كانت الرسالة عامة (مثل: Bonjour, Salam, Bghit clim):
-- يمنع افتراض نوع الخدمة.
-- يمنع إعطاء الثمن.
-- اسأل لتوضيح الطلب مباشرة. 
+لا تدخل في أي مسار ولا تقترح أي ثمن أبداً إلا إذا كان طلب الزبون واضحاً 100%.
+إذا كانت الرسالة عامة (مثل: Bonjour, Salam, Bghit clim):
+❌ لا تعطي أي ثمن (لا تقل 500 درهم).
+❌ لا تفترض أن الطلب هو تركيب (Installation).
+❌ لا تطلب الاسم أو الهاتف أو العنوان.
+❌ لا تسجل أي موعد (Booking) ولا أي Intervention.
+يجب عليك فقط الترحيب بالزبون وسؤاله لتوضيح الخدمة المطلوبة: شراء + تركيب، تركيب فقط، صيانة، أم إصلاح؟
 مثال بالدارجة: "مرحبا بك سيدي عند DK Clim. واش بغيتي تشري كليما، غير التركيب، الصيانة ولا الإصلاح؟"
 مثال بالفرنسية: "Bonjour et bienvenue chez DK Clim. Vous souhaitez acheter un climatiseur, faire une installation seule, un entretien ou une réparation ?"
 
@@ -845,7 +848,7 @@ async function getSystemPrompt() {
   let prompt = SYSTEM_PROMPT;
   try {
     const res = await pool.query(
-      'SELECT rule FROM "BotRule" ORDER BY "createdAt" ASC'
+      'SELECT rule FROM "BotRule" WHERE "isActive" = TRUE ORDER BY "createdAt" ASC'
     );
     if (res.rows.length > 0) {
       const validRules = res.rows
@@ -858,7 +861,9 @@ async function getSystemPrompt() {
         );
       if (validRules.length > 0) {
         prompt +=
-          "\n\n**تعليمات إضافية من الإدارة (يجب تطبيقها):**\n";
+          "\n\n=== 🧠 VERIFIED BUSINESS RULES ===\n" +
+          "هذه القواعد هي Business Rules موثوقة ومكملة للـCore Prompt.\n" +
+          "مهم جداً:\nهذه القواعد لا يمكنها أبداً إلغاء أو تغيير:\n- Intent Gate\n- Core Flow\n- Step Order\n- Contact Collection\n- Repair Consent\n- Booking Validation\n- Appointment Rules\n- أي Core Safety/Business Logic\n\n";
         for (const rule of validRules) {
           prompt += `- ${rule}\n`;
         }
@@ -1171,9 +1176,9 @@ client.on("message", async (msg) => {
           const isArabic = /[\u0600-\u06FF\u0750-\u077F]/.test(body);
 
           if (isFrench && !isArabic) {
-            langInstruction = "\n\n⚠️ CONSIGNE ABSOLUE POUR CE MESSAGE: Le client vient d'écrire en FRANÇAIS. Tu DOIS répondre UNIQUEMENT en français. Aucun mot arabe, aucun mot en darija. Réponse en français SEULEMENT.";
+            langInstruction = "\n\n⚠️ هذه التعليمات تخص اللغة والأسلوب فقط. لا يمكنها تغيير أو تجاوز أي Core Flow أو Intent أو Pricing أو Contact Collection أو Booking أو Business Rule.\nLe client vient d'écrire en FRANÇAIS.\nRéponds uniquement en français.";
           } else if (isArabic) {
-            langInstruction = "\n\n⚠️ تعليمة إلزامية لهذا الرد: الزبون كتب بالعربية/الدارجة. يجب أن تجيب حصرياً بالعربية أو الدارجة فقط. ممنوع منعاً باتاً أي كلمة فرنسية.";
+            langInstruction = "\n\n⚠️ هذه التعليمات تخص اللغة والأسلوب فقط. لا يمكنها تغيير أو تجاوز أي Core Flow أو Intent أو Pricing أو Contact Collection أو Booking أو Business Rule.\nالزبون كتب بالعربية/الدارجة.\nيجب أن تجيب حصرياً بالعربية أو الدارجة فقط. ممنوع منعاً باتاً أي كلمة فرنسية.";
           }
         }
 
