@@ -1114,6 +1114,19 @@ client.on("message", async (msg) => {
         const aiMessages = [{ role: "system", content: sysPrompt }, ...history];
 
         const reply = await askAI(aiMessages);
+
+        // ── Race-condition guard ─────────────────────────────────────────
+        // Admin may have replied WHILE the AI was generating. Re-check
+        // is_bot_active right before sending so we never talk over a human.
+        const stillActive = await getBotActive(userId);
+        if (!stillActive) {
+          console.log(
+            `[RACE-GUARD] Admin replied during AI generation. Discarding bot reply for ${userId}`
+          );
+          return;
+        }
+        // ────────────────────────────────────────────────────────────────
+
         await pushMessage(userId, "assistant", reply);
 
         const currentStatus = await getLeadStatus(userId);
