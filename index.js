@@ -964,8 +964,7 @@ client.on("message", async (msg) => {
       );
     } catch (_) {}
     await msg.reply(
-      BOT_WATERMARK +
-        "عذراً، ما كنقدرش نسمع الأوديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا.\n\nDésolé, je ne peux pas écouter les messages vocaux pour le moment 😅 Pouvez-vous m'écrire ce que vous souhaitez ? Sinon, un membre de notre équipe vous répondra très vite."
+      BOT_WATERMARK + "مرحبا، شي واحد من l'équipe غادي يسمع الأوديو ديالك ويجاوبك فأقرب وقت."
     );
     return;
   }
@@ -981,8 +980,7 @@ client.on("message", async (msg) => {
         );
       } catch (_) {}
       await msg.reply(
-        BOT_WATERMARK +
-          "عذراً، ما كنقدرش نشوف التصاور أو الفيديوهات حالياً 😅 تقدر تكتب ليا شنو بغيتي؟ وإلا ما كنتيش تقدر تكتب، ها هو غادي يجاوبك شي حد من الفريق ديالنا في أقرب وقت.\n\nDésolé, je ne peux pas voir les images ou vidéos pour le moment 😅 Pouvez-vous m'écrire ce que vous souhaitez ? Sinon, un membre de notre équipe vous répondra très vite."
+        BOT_WATERMARK + "مرحبا، شي واحد من l'équipe technique غادي يشوف هادشي ويجاوبك فأقرب وقت."
       );
       return;
     } else {
