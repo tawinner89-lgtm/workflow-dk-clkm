@@ -1114,7 +1114,25 @@ client.on("message", async (msg) => {
           ? ADMIN_SYSTEM_PROMPT
           : await getSystemPrompt();
 
-        const aiMessages = [{ role: "system", content: sysPrompt }, ...history];
+        // ── Programmatic Language Detection ──────────────────────────────
+        // Detect the language of the client's last message and inject a
+        // hard language enforcement instruction so the AI cannot ignore it.
+        let langInstruction = "";
+        if (!isTeamMember && body) {
+          const isFrench = /[àâäéèêëîïôùûüçœæ]|(\b(bonjour|merci|oui|non|je|tu|il|nous|vous|ils|est|pour|avec|dans|sur|par|que|qui|une|des|les|mon|ton|son|votre|notre|avoir|être|faire|vouloir|prix|devis|installation|entretien|réparation|climatisation|frais|cher|combien|quand|comment|pourquoi|où|quoi)\b)/i.test(body);
+          const isArabic = /[\u0600-\u06FF\u0750-\u077F]/.test(body);
+
+          if (isFrench && !isArabic) {
+            langInstruction = "\n\n⚠️ CONSIGNE ABSOLUE POUR CE MESSAGE: Le client vient d'écrire en FRANÇAIS. Tu DOIS répondre UNIQUEMENT en français. Aucun mot arabe, aucun mot en darija. Réponse en français SEULEMENT.";
+          } else if (isArabic) {
+            langInstruction = "\n\n⚠️ تعليمة إلزامية لهذا الرد: الزبون كتب بالعربية/الدارجة. يجب أن تجيب حصرياً بالعربية أو الدارجة فقط. ممنوع منعاً باتاً أي كلمة فرنسية.";
+          }
+        }
+
+        const finalSysPrompt = sysPrompt + langInstruction;
+        // ─────────────────────────────────────────────────────────────────
+
+        const aiMessages = [{ role: "system", content: finalSysPrompt }, ...history];
 
         const reply = await askAI(aiMessages);
 
