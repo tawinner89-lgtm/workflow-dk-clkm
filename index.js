@@ -440,6 +440,13 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
 • الخطوة 3: إذا اختار العميل صيانة وقائية (entretien préventif)، وضح أن الثمن يبدأ من 300 د.م. ثم اطلب معلومات الاتصال الناقصة (الاسم، ثم المدينة/العنوان، ثم رقم الهاتف) كل معلومة في رسالة مستقلة. يمنع منعاً باتاً طلب الاسم والمدينة في نفس السؤال. أما إذا كان هناك مشكل تبريد، عامله كمسار الإصلاح ولا تذكر 300 د.م.
 • الخطوة 4: اطلب الوقت المناسب للزيارة (Créneau).
 
+=== LANGUAGE CONSISTENCY — CRITICAL ===
+Réponds toujours dans la même langue que le client.
+- Si le client parle français → réponds en français.
+- Si le client parle arabe/Darija → réponds en arabe/Darija.
+- Ne change jamais de langue sans demande explicite du client.
+- "Ok", "Oui", "D'accord" ne doivent jamais provoquer un changement de langue.
+
 === قاعدة الاستنتاج الصحيح (CRITICAL REASONING) ===
 - افهم السياق بدقة: إذا قدم العميل معلومتين معاً (مثلاً: "عندي مكيف Cassette وبغيت فقط entretien préventif")، فأنت تعرف الآن الخطوة 1 والخطوة 2. انتقل مباشرة للخطوة 3 (اذكر السعر 300 د.م واطلب المعلومات).
 - لا تستنتج معلومات مجهولة: قول العميل "Cassette" أو "مكيف" لا يعني أبداً أنه يريد "صيانة وقائية". Unknown ≠ Inferred. اسأل لتأكيد الهدف.
@@ -464,6 +471,14 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
 يجب عليك فقط تسجيل الاقتراح وإخباره بأن الفريق سيتحقق.
 مثال: "مزيان، سجلت الاقتراح ديالك. الفريق غادي يتأكد من التوفر ويتواصل معاك باش يأكد الموعد."
 مثال بالفرنسية: "Parfait, j'ai noté votre proposition. L'équipe vérifiera la disponibilité et vous contactera pour confirmer le rendez-vous."
+
+⚠️ تنبيه هام بخصوص كلمة "Ok" أو "D'accord" بعد حجز الموعد:
+إذا وافق العميل أو أكد استلام رسالتك بكلمة قصيرة (مثل: Ok, D'accord, تمام, Oui, شكرا) بعد أن أخبرته أن الفريق سيتحقق من التوفر:
+- لا تعتبر ذلك موعداً جديداً.
+- لا تؤكد الموعد أو تدعي أنه متاح (disponible).
+- لا تكرر إخباره بأن الفريق سيتحقق.
+- لا تطرح أي أسئلة أخرى.
+✅ فقط أنهِ المحادثة بلطف (مثال: "مرحبا سيدي، يومك سعيد." أو "Merci à vous, bonne journée.").
 `;
 
 // ─────────────────────────────────────────────
@@ -566,7 +581,24 @@ async function askDeepSeek(messages, maxTokens) {
   return res.data.choices[0].message.content.trim();
 }
 
+let groqCooldownUntil = 0;
+
 async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
+  if (Date.now() < groqCooldownUntil) {
+    console.warn(`[GROQ] Cooldown active. Skipping Groq and using DeepSeek fallback.`);
+    if (process.env.DEEPSEEK_API_KEY) {
+      try { return await askDeepSeek(messages, maxTokens); }
+      catch (dsErr) {
+        console.error("[DEEPSEEK FALLBACK ERR]", dsErr.message);
+        if (process.env.OPENROUTER_API_KEY) {
+          try { return await askOpenRouter(messages, maxTokens); }
+          catch (orErr) { console.error("[OPENROUTER FALLBACK ERR]", orErr.message); }
+        }
+      }
+    }
+    throw new Error("All AI providers failed or are on cooldown.");
+  }
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const completion = await groq.chat.completions.create({
@@ -581,7 +613,23 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
         .replace(/<think>[\s\S]*/g, "")
         .trim();
     } catch (err) {
-      console.warn(`[GROQ] Error: ${err.message} – Attempting Fallbacks...`);
+      const isTPD = err.status === 429 && err.message && err.message.includes("tokens per day (TPD)");
+
+      if (isTPD) {
+        let cooldownMs = 30 * 60 * 1000; // default 30 mins
+        const match = err.message.match(/try again in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/);
+        if (match) {
+          const h = parseInt(match[1] || 0) * 3600000;
+          const m = parseInt(match[2] || 0) * 60000;
+          const s = parseFloat(match[3] || 0) * 1000;
+          if (h + m + s > 0) cooldownMs = h + m + s;
+        }
+        if (cooldownMs > 12 * 3600 * 1000) cooldownMs = 12 * 3600 * 1000; // max 12 hours
+        groqCooldownUntil = Date.now() + cooldownMs;
+        console.warn(`[GROQ] TPD limit detected. Cooling down Groq until ${new Date(groqCooldownUntil).toLocaleTimeString()}`);
+      } else {
+        console.warn(`[GROQ] Error: ${err.message} – Attempting Fallbacks...`);
+      }
 
       if (process.env.DEEPSEEK_API_KEY) {
         try {
@@ -589,9 +637,7 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
         } catch (dsErr) {
           console.error("[DEEPSEEK FALLBACK ERR]", dsErr.message);
           if (process.env.OPENROUTER_API_KEY) {
-            console.warn(
-              "[DEEPSEEK] Error – Falling back to OpenRouter (Qwen)!"
-            );
+            console.warn("[DEEPSEEK] Error – Falling back to OpenRouter (Qwen)!");
             try {
               return await askOpenRouter(messages, maxTokens);
             } catch (orErr) {
@@ -601,8 +647,7 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
         }
       }
 
-      const retry =
-        err.status === 429 || err.status === 503 || err.status >= 500;
+      const retry = (err.status === 429 && !isTPD) || err.status === 503 || err.status >= 500;
       if (retry && attempt < retries) {
         const wait = attempt * 2000;
         console.warn(`[AI] retry ${attempt}/${retries} in ${wait}ms`);
@@ -617,8 +662,6 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
 // ─────────────────────────────────────────────
 // Database Helpers & Repositories
 // ─────────────────────────────────────────────
-
-
 async function getHistory(userId) {
   try {
     const res = await pool.query(
@@ -1341,9 +1384,57 @@ client.on("message", async (msg) => {
         const finalSysPrompt = sysPrompt + langInstruction;
         // ─────────────────────────────────────────────────────────────────
 
-        const aiMessages = [{ role: "system", content: finalSysPrompt }, ...history];
+        // ── Deterministic Appointment Acknowledgment Intercept ─────────────
+        let isIntercepted = false;
+        let reply = "";
 
-        let reply = await askAI(aiMessages);
+        if (!isTeamMember && history.length > 1) {
+          const lastAssistantMsg = history.slice().reverse().find(m => m.role === "assistant");
+          const tBody = body.toLowerCase().trim().replace(/[.,!؟?]/g, '');
+          const ackWords = ["ok", "okay", "dac", "daccord", "d'accord", "oui", "تمام", "مزيان", "yep", "yes", "wakha", "waxa", "واخا", "صافي", "safi"];
+          const isAck = ackWords.includes(tBody);
+
+          if (lastAssistantMsg && isAck) {
+            const content = lastAssistantMsg.content.toLowerCase();
+            const isWaitingForAppt = content.includes("يتأكد من التوفر") ||
+                                     content.includes("vérifiera la disponibilité") ||
+                                     content.includes("تأكد من التوفر") ||
+                                     content.includes("confirmer le rendez-vous") ||
+                                     content.includes("يأكد الموعد");
+
+            if (isWaitingForAppt) {
+              let isFrench = false;
+              const recentUserMsgs = history.filter(m => m.role === "user").slice(-5);
+              for (let i = recentUserMsgs.length - 1; i >= 0; i--) {
+                const text = recentUserMsgs[i].content;
+                const tText = text.toLowerCase().trim().replace(/[.,!؟?]/g, '');
+                if (ackWords.includes(tText)) continue; // Skip ACK-only messages for language detection
+
+                const hasAr = /[\u0600-\u06FF\u0750-\u077F]/.test(text);
+                if (hasAr) {
+                  isFrench = false;
+                  break;
+                }
+
+                const hasFr = /[àâäéèêëîïôùûüçœæ]|(\b(bonjour|merci|oui|non|je|tu|il|nous|vous|ils|est|pour|avec|dans|sur|par|que|qui|une|des|les|mon|ton|son|votre|notre|avoir|être|faire|vouloir|prix|devis|installation|entretien|réparation|climatisation|frais|cher|combien|quand|comment|pourquoi|où|quoi)\b)/i.test(text);
+                if (hasFr) {
+                  isFrench = true;
+                  break;
+                }
+              }
+
+              reply = isFrench
+                ? "C'est bien noté. Notre équipe vous contactera prochainement pour la confirmation. Excellente journée !"
+                : "مزيان، سجلنا الطلب ديالك وغادي نتواصلو معاك قريباً باش نأكدو ليك. نهارك مبروك!";
+              isIntercepted = true;
+            }
+          }
+        }
+
+        if (!isIntercepted) {
+          const aiMessages = [{ role: "system", content: finalSysPrompt }, ...history];
+          reply = await askAI(aiMessages);
+        }
 
         // 🛡️ OUTPUT GUARD
         const validation = validateAIResponse(reply, finalSysPrompt);
