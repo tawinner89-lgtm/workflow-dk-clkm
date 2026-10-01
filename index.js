@@ -723,9 +723,7 @@ function detectHandoff(reply) {
 // Admin Dashboard Sync (DK Clim Next.js App)
 // ─────────────────────────────────────────────
 async function syncToAdmin(history, userId) {
-  const lastSync = syncedUsers.get(userId) || 0;
-  if (Date.now() - lastSync < 60 * 60 * 1000) return;
-  if (history.length < 4) return;
+    if (history.length < 4) return;
 
   const recentText = history
     .slice(-10)
@@ -1020,6 +1018,13 @@ const activeMessageIds = new Map();
 client.on("message", async (msg) => {
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
 
+  let rawPhone = getRawPhone(msg.from);
+  try {
+    const contact = await msg.getContact();
+    if (contact && contact.number) rawPhone = contact.number;
+  } catch (e) {}
+  const userId = normalizePhone(rawPhone);
+
   // 🚨 PERSISTENT DATABASE DUPLICATE PROTECTION 🚨
   if (msg.id && msg.id.id) {
     try {
@@ -1056,9 +1061,7 @@ client.on("message", async (msg) => {
     }
   }
 
-  const contact = await msg.getContact();
-  const rawPhone = contact.number || getRawPhone(msg.from);
-  const userId = normalizePhone(rawPhone);
+  
 
   let body = msg.body?.trim() || "";
 
@@ -1285,7 +1288,7 @@ client.on("message", async (msg) => {
         }
 
         const history = await getHistory(userId);
-        const sysPrompt = isTeamMember
+        let sysPrompt = isTeamMember
           ? ADMIN_SYSTEM_PROMPT
           : await getSystemPrompt();
 
