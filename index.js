@@ -474,7 +474,7 @@ function validateAIResponse(reply, rulesText) {
   const rulesLower = rulesText.toLowerCase();
 
   // 1. PRICE GUARD (FIXED BTU FLAW & WRITTEN WORDS FLAW)
-  const priceRegex = /(?:^|[\s\W])(\d[\d\s,.]*)\s*(?:dh|dhs|mad|dirham|dirhams|d\.m|درهم)(?:[\s\W]|$)/gi;
+  const priceRegex = /(?:^|[\s\W])(\d[\d\s,.]*)\s*(?:dh|dhs|mad|dirham|dirhams|d\.m|درهم|د\.م\.?)(?:[\s\W]|$)/gi;
   const rulePrices = new Set();
   let rm;
   while ((rm = priceRegex.exec(rulesLower)) !== null) {
@@ -492,7 +492,7 @@ function validateAIResponse(reply, rulesText) {
     }
   }
 
-  const hasCurrencyWord = /(?:dh|dhs|mad|dirham|dirhams|d\.m|درهم)/i.test(replyLower);
+  const hasCurrencyWord = /(?:dh|dhs|mad|dirham|dirhams|d\.m|درهم|د\.م\.?)/i.test(replyLower);
   if (hasCurrencyWord && !hasDigitsPrice) {
      return { safe: false, reason: `Potential written-out price detected (currency word without numeric value).` };
   }
