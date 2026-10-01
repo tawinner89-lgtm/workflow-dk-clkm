@@ -8,6 +8,7 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const Groq = require("groq-sdk");
 const axios = require("axios");
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 const http = require("http");
 const { execSync } = require("child_process");
@@ -341,6 +342,14 @@ httpServer.listen(CONFIG.qrPort, () => {
 // ─────────────────────────────────────────────
 const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار التجاري لشركة "DK Clim" (المتخصصة في التكييف بالمغرب).
 
+🚨 ABSOLUTE NO-GUESSING POLICY (سياسة عدم التخمين الصارمة):
+يمنع منعاً باتاً تخمين، افتراض، أو اختراع أي معلومة (UNKNOWN) غير موجودة صراحة في كلام العميل أو القواعد الموثوقة.
+- لا تخمن الخدمة (Service): إذا كانت مبهمة أو متعددة، استعمل Intent Gate واسأل العميل للتوضيح.
+- لا تخترع أي سعر (Prix): التزم فقط بما هو مدون. إذا لم يكن متوفراً، لا تعطِ أي رقم.
+- لا تؤكد أي موعد (Disponibilité): لا تقل "متاح" أو "مؤكد"، سجل الاقتراح فقط وقل أن الفريق سيتحقق.
+- لا تستنتج الهاتف من الحساب: يجب أن يكتب العميل رقمه صراحة.
+- لا تقدم احتمالات الـ AI كحقائق. غياب المعلومة يعني طلب التوضيح (Clarification) أو تأجيل الجواب للفريق البشري.
+
 ⚡ قواعد ذهبية وأسلوب الحوار (التزم بها بحزم شديد):
 1. إجابات قصيرة ومباشرة ("عطي لاصق"): أجب على قد السؤال بالضبط في سطرين أو 3 أسطر كحد أقصى. يمنع منعاً باتاً إرسال جرائد أو نصوص طويلة لن يقرأها الزبون.
 2. حظر إرسال الروابط والعناوين تلقائياً: يمنع منعاً باتاً إرسال العنوان، رابط الموقع (Google Maps)، الموقع الإلكتروني، أو مواقع التواصل الاجتماعي (فيسبوك، انستغرام، تيك توك) من تلقاء نفسك! أرسلها فقط وفقط إذا سألك الزبون عنها صراحة (مثل: "فين كاين المحل ديالكم؟" أو "عطيني اللوكاليزاسيون").
@@ -452,6 +461,61 @@ const SYSTEM_PROMPT = `أنت المساعد الذكي والمستشار ال�
 مثال: "مزيان، سجلت الاقتراح ديالك. الفريق غادي يتأكد من التوفر ويتواصل معاك باش يأكد الموعد."
 مثال بالفرنسية: "Parfait, j'ai noté votre proposition. L'équipe vérifiera la disponibilité et vous contactera pour confirmer le rendez-vous."
 `;
+
+// ─────────────────────────────────────────────
+// DETERMINISTIC OUTPUT GUARD
+// ─────────────────────────────────────────────
+function validateAIResponse(reply, rulesText) {
+  const replyLower = reply.toLowerCase();
+  const rulesLower = rulesText.toLowerCase();
+
+  // 1. PRICE GUARD (FIXED BTU FLAW & WRITTEN WORDS FLAW)
+  const priceRegex = /(?:^|[\s\W])(\d[\d\s,.]*)\s*(?:dh|dhs|mad|dirham|dirhams|d\.m|درهم)(?:[\s\W]|$)/gi;
+  const rulePrices = new Set();
+  let rm;
+  while ((rm = priceRegex.exec(rulesLower)) !== null) {
+    rulePrices.add(rm[1].replace(/[\s,.]/g, ''));
+  }
+
+  let hasDigitsPrice = false;
+  let match;
+  priceRegex.lastIndex = 0;
+  while ((match = priceRegex.exec(replyLower)) !== null) {
+    hasDigitsPrice = true;
+    const val = match[1].replace(/[\s,.]/g, '');
+    if (!rulePrices.has(val)) {
+      return { safe: false, reason: `Invented numeric price detected: ${val}` };
+    }
+  }
+
+  const hasCurrencyWord = /(?:dh|dhs|mad|dirham|dirhams|d\.m|درهم)/i.test(replyLower);
+  if (hasCurrencyWord && !hasDigitsPrice) {
+     return { safe: false, reason: `Potential written-out price detected (currency word without numeric value).` };
+  }
+
+  // 2. APPOINTMENT / AVAILABILITY GUARD
+  const confirmKeywords = /(?:^|[\s\W])(confirmé[es]*|disponibles?|accepté[es]*|validé[es]*|réservé[es]*|libres?|passera|arrivera|مؤكد|متاح|موجود|مأكد|كونفيرمي|نجيو|نصيفطو|مبرمج|تأكد|متوفر)(?:[\s\W]|$)/i;
+  const timingKeywords = /(?:^|[\s\W])(rendez-vous|technicien|rdv|visite|موعد|تقني|تيكنيسيان|demain|aujourd'hui|غدا|اليوم|créneau|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)(?:[\s\W]|$)/i;
+
+  if (confirmKeywords.test(replyLower) && timingKeywords.test(replyLower)) {
+    return { safe: false, reason: "Unauthorized appointment/availability confirmation." };
+  }
+
+  if (/(technicien|تقني).* (passera|viendra|arrivera|غادي يجي)/i.test(replyLower)) {
+    return { safe: false, reason: "Unauthorized technician scheduling." };
+  }
+
+  // 3. UNSUPPORTED CLAIMS GUARD
+  const claims = ['garantie', 'promotion', 'remise', 'réduction', 'plusieurs fois', 'par mois', 'tranche', 'spécial', 'échelonné', 'couvert', 'ضمان', 'تخفيض', 'مجان', 'فابور', 'gratuit'];
+  for (const claim of claims) {
+    if (replyLower.includes(claim) && !rulesLower.includes(claim)) {
+      return { safe: false, reason: `Unauthorized claim: ${claim}` };
+    }
+  }
+
+  return { safe: true };
+}
+
 // ─────────────────────────────────────────────
 // AI Clients (Groq + DeepSeek + OpenRouter)
 // ─────────────────────────────────────────────
@@ -549,17 +613,7 @@ async function askAI(messages, maxTokens = CONFIG.replyMaxTokens, retries = 3) {
 // ─────────────────────────────────────────────
 // Database Helpers & Repositories
 // ─────────────────────────────────────────────
-const syncedUsers = new Map(); // userId → lastSyncTime
 
-// Prune syncedUsers memory periodically (every 1 hour)
-setInterval(() => {
-  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  for (const [uid, timestamp] of syncedUsers.entries()) {
-    if (timestamp < oneDayAgo) {
-      syncedUsers.delete(uid);
-    }
-  }
-}, 60 * 60 * 1000);
 
 async function getHistory(userId) {
   try {
@@ -718,6 +772,29 @@ async function syncToAdmin(history, userId) {
     return;
   }
 
+    // ATOMIC IDEMPOTENCY BY PAYLOAD HASH
+  const syncHash = crypto.createHash('sha256').update(JSON.stringify({
+    userId,
+    name: data.clientName.trim(),
+    address: data.clientAddress.trim(),
+    phone: phone,
+    type: data.type || "Installation",
+    proposedTime: data.proposedTime || "N/A"
+  })).digest('hex');
+
+  try {
+    const res = await pool.query(
+      `INSERT INTO "InterventionSync" (hash, "createdAt") VALUES ($1, NOW()) ON CONFLICT (hash) DO NOTHING RETURNING hash`,
+      [syncHash]
+    );
+    if (res.rowCount === 0) {
+      console.log("❌ [VALIDATION FAILED] Duplicate intervention detected deterministically. Aborting.");
+      return;
+    }
+  } catch (e) {
+    console.error("InterventionSync DB error:", e.message);
+  }
+
   let assignedTech = null;
   try {
     const techRes = await pool.query(
@@ -753,7 +830,7 @@ async function syncToAdmin(history, userId) {
       timeout: 6000,
     });
     if (res.data?.success) {
-      syncedUsers.set(userId, Date.now());
+      
       console.log("✅ [ADMIN SYNC] Intervention:", res.data.data?.reference);
 
       if (assignedTech && assignedTech.phone) {
@@ -938,8 +1015,46 @@ client.on("message_create", async (msg) => {
   }
 });
 
+const activeMessageIds = new Map();
+
 client.on("message", async (msg) => {
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
+
+  // 🚨 PERSISTENT DATABASE DUPLICATE PROTECTION 🚨
+  if (msg.id && msg.id.id) {
+    try {
+      let isDuplicate = false;
+      const res = await pool.query(
+        `INSERT INTO "ProcessedMessage" (id, status, "createdAt") VALUES ($1, 'PROCESSING', NOW()) ON CONFLICT (id) DO NOTHING RETURNING id`,
+        [msg.id.id]
+      );
+      if (res.rowCount === 0) {
+        const check = await pool.query(`SELECT status, "createdAt" FROM "ProcessedMessage" WHERE id = $1`, [msg.id.id]);
+        if (check.rows.length > 0) {
+          const row = check.rows[0];
+          if (row.status === 'COMPLETED') {
+            isDuplicate = true;
+          } else if (row.status === 'PROCESSING') {
+            const age = Date.now() - new Date(row.createdAt).getTime();
+            if (age > 5 * 60 * 1000) {
+              await pool.query(`UPDATE "ProcessedMessage" SET "createdAt" = NOW() WHERE id = $1`, [msg.id.id]);
+            } else {
+              isDuplicate = true;
+            }
+          }
+        }
+      }
+      if (isDuplicate) {
+        console.log(`[DUPLICATE DROP] Message ${msg.id.id} already processed or processing.`);
+        return;
+      }
+      
+      if (!activeMessageIds.has(userId)) activeMessageIds.set(userId, []);
+      activeMessageIds.get(userId).push(msg.id.id);
+    } catch (e) {
+      console.error("Duplicate DB error:", e.message);
+    }
+  }
 
   const contact = await msg.getContact();
   const rawPhone = contact.number || getRawPhone(msg.from);
@@ -1189,12 +1304,51 @@ client.on("message", async (msg) => {
           }
         }
 
+        if (!isTeamMember && body) {
+          const serviceMatch = body.match(/Type de service demand[eé]\s*:\s*([^\n]+)/i);
+          if (serviceMatch) {
+            const rawService = serviceMatch[1].trim().toLowerCase();
+            let validatedService = null;
+            
+            const hasAchat = rawService.includes("achat");
+            const hasInstall = rawService.includes("installation");
+            const hasEntretien = rawService.includes("entretien") || rawService.includes("nettoyage");
+            const hasRepar = rawService.includes("réparation") || rawService.includes("reparation");
+            
+            if (hasAchat && !hasEntretien && !hasRepar) {
+              validatedService = "Achat + Installation";
+            } else if (hasInstall && !hasAchat && !hasEntretien && !hasRepar) {
+              validatedService = "Installation";
+            } else if (hasEntretien && !hasAchat && !hasInstall && !hasRepar) {
+              validatedService = "Entretien";
+            } else if (hasRepar && !hasAchat && !hasInstall && !hasEntretien) {
+              validatedService = "Réparation";
+            }
+            
+            if (validatedService) {
+              sysPrompt += "\n\n=== VERIFIED FORM LEAD CONTEXT ===\nLe formulaire publicitaire indique explicitement le service demandé :\n[" + validatedService + "]\n\nCette information est vérifiée et prioritaire.\nTu DOIS démarrer directement le flow correspondant à ce service.\nIgnore toute formulation générale ou secondaire du message qui pourrait créer une autre intention, par exemple :\n\"j'aimerais en savoir plus sur votre entreprise\".\nNe donne pas les informations générales de l'entreprise simplement à cause de cette phrase.\nNe devine jamais un autre service.";
+            }
+          }
+        }
+
         const finalSysPrompt = sysPrompt + langInstruction;
         // ─────────────────────────────────────────────────────────────────
 
         const aiMessages = [{ role: "system", content: finalSysPrompt }, ...history];
 
-        const reply = await askAI(aiMessages);
+        let reply = await askAI(aiMessages);
+
+        // 🛡️ OUTPUT GUARD
+        const validation = validateAIResponse(reply, finalSysPrompt);
+        if (!validation.safe) {
+          console.warn(`🚨 [OUTPUT GUARD BLOCK] ${validation.reason} | Original AI: ${reply.slice(0, 60)}...`);
+          const isFrench = /[àâäéèêëîïôùûüçœæ]|(\b(bonjour|merci|oui|non|je|tu|il|nous|vous|ils|est|pour|avec|dans|sur|par|que|qui|une|des|les|mon|ton|son|votre|notre|avoir|être|faire|vouloir)\b)/i.test(body);
+          if (isFrench) {
+            reply = "Je préfère vérifier cette information avec notre équipe afin de vous donner une réponse exacte. L'équipe prendra le relais.";
+          } else {
+            reply = "باش نعطيك معلومة صحيحة 100%، غادي نتأكد منها مع الفريق ديالنا وغادي يجاوبوك في أقرب وقت.";
+          }
+        }
 
         // ── Race-condition guard ─────────────────────────────────────────
         // Admin may have replied WHILE the AI was generating. Re-check
