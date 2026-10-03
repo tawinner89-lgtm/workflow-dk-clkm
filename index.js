@@ -1335,6 +1335,81 @@ client.on("message", async (msg) => {
         }
 
         const history = await getHistory(userId);
+        // --- V2 CONVERSATION ENGINE ---
+        const { runTurn } = require('./lib/v2/engine');
+        const { askAI } = require('./src/services/llm');
+        
+        let businessRulesText = "";
+        try {
+          const bRules = require('./src/config/business.json');
+          businessRulesText = JSON.stringify(bRules, null, 2);
+        } catch(e) {}
+
+        let convState = {
+            intent: null,
+            stage: "INITIAL",
+            slots: {},
+            flags: {},
+            last_bot_text: null,
+            last_bot_question_slot: null
+        };
+        try {
+            const stateRes = await pool.query('SELECT state FROM "ConversationState" WHERE phone = $1', [userId]);
+            if (stateRes.rows.length > 0) {
+                convState = stateRes.rows[0].state || convState;
+            }
+        } catch(e) {
+            await pool.query('CREATE TABLE IF NOT EXISTS "ConversationState" (phone VARCHAR(50) PRIMARY KEY, state JSONB, "updatedAt" TIMESTAMP DEFAULT NOW())').catch(()=>{});
+        }
+
+        const v2Llm = async (prompt) => {
+          const text = await askAI([{ role: "user", content: prompt }]);
+          return { text, tokens: Math.round(prompt.length / 4) + Math.round(String(text).length / 4) };
+        };
+
+        const v2Result = await runTurn(v2Llm, convState, body, history, businessRulesText);
+        
+        try {
+            await pool.query('INSERT INTO "ConversationState" (phone, state, "updatedAt") VALUES ($1, $2, NOW()) ON CONFLICT (phone) DO UPDATE SET state = EXCLUDED.state, "updatedAt" = NOW()', [userId, v2Result.newState]);
+        } catch(e) {}
+
+        let reply = v2Result.reply;
+
+        if (!reply || reply.trim() === "") {
+          console.error(`[EMPTY-GUARD] AI returned an empty message. Discarding.`);
+          return;
+        }
+
+        const stillActive = await getBotActive(userId);
+        if (!stillActive) {
+          console.log(`[RACE-GUARD] Admin replied during AI generation. Discarding bot reply for ${userId}`);
+          return;
+        }
+
+        await pushMessage(userId, "assistant", reply);
+
+        if (v2Result.nextAction?.type === 'handoff' || v2Result.newState.stage === 'HANDOFF') {
+             await setLeadStatus(userId, "HANDED_OFF_TO_APPOINTMENT");
+        } else if (v2Result.newState.stage === 'CLOSED') {
+             await setLeadStatus(userId, "CLOSED");
+        } else {
+             await setLeadStatus(userId, "NEW");
+        }
+
+        if (chat) {
+          try { await chat.clearState(); } catch (_) {}
+        }
+
+        try {
+          await msg.reply(BOT_WATERMARK + reply);
+        } catch (replyErr) {
+          await client.sendMessage(userId, BOT_WATERMARK + reply);
+        }
+
+        console.log(`[OUT] ${reply.slice(0, 100)}`);
+        syncToAdmin(history, userId).catch((err) => console.error("[SYNC ERR]", err.message));
+
+        /* 
         let sysPrompt = isTeamMember
           ? ADMIN_SYSTEM_PROMPT
           : await getSystemPrompt();
@@ -1526,6 +1601,7 @@ client.on("message", async (msg) => {
         syncToAdmin(history, userId).catch((err) =>
           console.error("[SYNC ERR]", err.message)
         );
+        */
       } catch (innerErr) {
         console.error("[AI DEBOUNCE ERR]", innerErr.message);
       } finally {

@@ -1,0 +1,22 @@
+{
+  "interventionZones": "Toute le Maroc",
+  "appointmentRule": "Never confirm slots. Ask for availability, then reply: 'Votre demande est enregistrée. Le service client va vous contacter dans les plus brefs délais pour confirmer le rendez-vous.'",
+  "prices": {
+    "diagnostic": 200,
+    "installation": 500,
+    "maintenance": 300
+  },
+  "acceptedBrands": [
+    "Carrier",
+    "LG",
+    "Midea",
+    "Gree",
+    "Whirlpool",
+    "Mitsubishi"
+  ],
+  "acceptedTypes": [
+    "Split",
+    "Gainable",
+    "Cassette"
+  ]
+}
