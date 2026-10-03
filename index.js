@@ -1,5 +1,14 @@
 ﻿"use strict";
-require("dotenv").config();
+require('dotenv').config();
+
+process.on('unhandledRejection', (reason, promise) => {
+    if (reason && reason.message && reason.message.includes('Execution context was destroyed')) {
+        console.warn('[PUPPETEER WARNING] Execution context destroyed. Ignoring to prevent crash.');
+        return;
+    }
+    console.error('[UNHANDLED REJECTION]', reason);
+});
+
 
 // ─────────────────────────────────────────────
 // Dependencies
@@ -134,6 +143,42 @@ async function initDB() {
     await pool.query(
       `CREATE INDEX IF NOT EXISTS "idx_botmessage_phone" ON "BotMessage" (phone);`
     );
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "Inventory" (
+        id SERIAL PRIMARY KEY,
+        brand VARCHAR(50),
+        btu VARCHAR(50),
+        stock_quantity INT
+      );
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "SalesLog" (
+        id SERIAL PRIMARY KEY,
+        timestamp TIMESTAMP DEFAULT NOW(),
+        brand VARCHAR(50),
+        btu VARCHAR(50),
+        customer_name VARCHAR(100),
+        customer_phone VARCHAR(50),
+        status VARCHAR(20) DEFAULT 'PENDING'
+      );
+    `);
+    
+    const invCheck = await pool.query('SELECT COUNT(*) FROM "Inventory"');
+    if (parseInt(invCheck.rows[0].count, 10) === 0) {
+      await pool.query(`
+        INSERT INTO "Inventory" (brand, btu, stock_quantity) VALUES
+        ('Carrier', '12000_BTU', 10),
+        ('Carrier', '9000_BTU', 15),
+        ('CIAT', '9000_BTU', 5),
+        ('CIAT', '12000_BTU', 5),
+        ('Daikool', '12000_BTU', 8),
+        ('Daikool', '9000_BTU', 8),
+        ('TCL', '9000_BTU', 10),
+        ('TCL', '12000_BTU', 10)
+      `);
+      console.log('[DB] Seeded mock inventory.');
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "BotRule" (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -1216,6 +1261,15 @@ process.on("unhandledRejection", (reason) => {
 
 
 
+
+
+
+
+
+
+
+
+module.exports = { pool };
 
 
 
