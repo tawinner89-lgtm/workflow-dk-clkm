@@ -1,7 +1,4 @@
-[providers]
-  node = {}
-
-[phases.setup]
+﻿[phases.setup]
   aptPkgs = [
     "libglib2.0-0",
     "libnss3",

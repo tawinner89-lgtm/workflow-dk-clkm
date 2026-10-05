@@ -637,6 +637,7 @@ const client = new Client({
   },
   puppeteer: {
     headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -1274,6 +1275,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
