@@ -580,7 +580,7 @@ async function syncToAdmin(history, userId) {
     clientName: data.clientName.trim(),
     clientAddress: data.clientAddress.trim(),
     clientContactPhone: phone,
-    proposedTime: data.proposedTime || null,
+    proposedTime: data.proposedTime || undefined,
     problemReported: data.problemReported || "Demande via WhatsApp Bot",
     type: data.type || "Installation",
     technicianName: assignedTech ? assignedTech.name : "À assigner (Bot)",
@@ -637,7 +637,7 @@ const client = new Client({
   },
   puppeteer: {
     headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -1275,6 +1275,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
