@@ -1,4 +1,4 @@
-const axios = require("axios");
+﻿const axios = require("axios");
 const { Groq } = require("groq-sdk");
 require("dotenv").config();
 
@@ -76,14 +76,29 @@ async function askAI(messages, maxTokens = replyMaxTokens, retries = 3) {
         throw new Error("No fallback AI providers configured (DeepSeek/OpenRouter).");
       }
     } catch (err) {
-      if (err.message && (err.message.includes("429") || err.message.includes("rate_limit") || err.message.includes("model_not_found") || err.message.includes("model_decommissioned"))) {
-        console.warn("[LLM] Rate limit or model error on Groq. Activating 5 min cooldown. Error:", err.message);
-        global.GROQ_COOLDOWN_UNTIL = Date.now() + 5 * 60 * 1000;
+      attempts++;
+      
+      const isRateLimit = err.message && (err.message.includes("429") || err.message.includes("rate_limit"));
+      const isModelError = err.message && (err.message.includes("model_not_found") || err.message.includes("model_decommissioned"));
+      
+      if (isRateLimit || isModelError) {
+        if (attempts >= retries) {
+          console.warn("[LLM FATAL] Rate limit/model error on Groq after retries. Activating 5 min global cooldown.");
+          global.GROQ_COOLDOWN_UNTIL = Date.now() + 5 * 60 * 1000;
+          throw err;
+        }
+
+        const retryAfter = (err.response && err.response.headers && err.response.headers['retry-after'])
+          ? parseInt(err.response.headers['retry-after']) * 1000
+          : 2000 * Math.pow(2, attempts); // Exponential backoff (4s, 8s...)
+          
+        console.warn(`[LLM] 429 Rate Limit on Groq. Retrying in ${retryAfter}ms (Attempt ${attempts} of ${retries})...`);
+        await new Promise((res) => setTimeout(res, retryAfter));
+        continue;
       } else {
         console.error("[LLM ERROR] Primary API failed:", err.message);
       }
       
-      attempts++;
       if (attempts >= retries) {
         console.error("[LLM FATAL] All AI providers failed after retries.");
         throw err;

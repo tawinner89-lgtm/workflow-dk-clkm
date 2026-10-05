@@ -754,16 +754,20 @@ async function notifyAdminV2(userId, slots) {
 
   console.log("\n✅ [V2 BOOKING DETECTED]", payload);
   try {
-    const res = await axios.post(CONFIG.adminWebhookUrl, payload, {
+    const crypto = require('crypto');
+    const payloadString = JSON.stringify(payload);
+    const secret = process.env.WEBHOOK_SECRET || 'dkclim-dev-secret';
+    const signature = crypto.createHmac('sha256', secret).update(payloadString).digest('hex');
+    const res = await axios.post(CONFIG.adminWebhookUrl, payloadString, {
       headers: {
-        Authorization: `Bearer ${CONFIG.notifyToken}`,
+        "x-webhook-signature": signature,
         "Content-Type": "application/json",
       },
       timeout: 6000,
     });
-    console.log("✅ [ADMIN SYNC] Webhook success:", res.data?.data?.reference || "OK");
+    console.log("🟢 [ADMIN SYNC] Webhook success:", res.data?.data?.reference || "OK");
   } catch (err) {
-    console.error("[ADMIN SYNC FAILED]", err.message);
+    console.error("🔴 [WEBHOOK ERROR]", err.response?.data || err.message);
   }
 
   let assignedTech = null;
@@ -776,17 +780,17 @@ async function notifyAdminV2(userId, slots) {
 
   if (assignedTech && assignedTech.phone) {
     const techChatId = normalizePhone(assignedTech.phone);
-    let timeSuffix = `_Merci de contacter le client pour confirmer l'heure de visite._`;
+    let timeSuffix = '_Merci de contacter le client pour confirmer l\'heure de visite._';
     if (payload.proposedTime !== "N/A") {
-      timeSuffix = `🕒 *Créneau proposé:* ${payload.proposedTime} - À CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilité du créneau._`;
+      timeSuffix = `🕒 *Créneau proposé:* ${payload.proposedTime} - À CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilité du créneau.`;
     }
 
     const notifMsg =
-      `🚨 *NOUVELLE INTERVENTION ASSIGNÉE (V2)* 🚨\n\n` +
-      `👤 *Client:* ${payload.clientName}\n` +
-      `📍 *Adresse:* ${payload.clientAddress}\n` +
-      `📞 *Téléphone:* ${payload.clientContactPhone}\n` +
-      `🔧 *Problème/Type:* ${payload.problemReported} (${payload.type})\n\n` +
+      '🛠️ *NOUVELLE INTERVENTION ASSIGNÉE (V2)* 🛠️\n\n' +
+      '👤 *Client:* ' + payload.clientName + '\n' +
+      '📍 *Adresse:* ' + payload.clientAddress + '\n' +
+      '📞 *Téléphone:* ' + payload.clientContactPhone + '\n' +
+      '🔧 *Problème/Type:* ' + payload.problemReported + ' (' + payload.type + ')\n\n' +
       timeSuffix;
 
     client.sendMessage(techChatId, BOT_WATERMARK + notifMsg).catch((err) => console.error("Failed to notify tech:", err.message));
