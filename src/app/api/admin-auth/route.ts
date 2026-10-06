@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createSession } from '@/lib/auth';
 import crypto from 'crypto';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const { password } = await request.json();
-    const correctPassword = process.env.ADMIN_PASSWORD || 'dkclim2026';
+    const correctPassword = process.env.ADMIN_PASSWORD || 'fallback_password_2026';
     
     if (typeof password === 'string' && password.length === correctPassword.length) {
       if (crypto.timingSafeEqual(Buffer.from(password), Buffer.from(correctPassword))) {
@@ -22,3 +22,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
