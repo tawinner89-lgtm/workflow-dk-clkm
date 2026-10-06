@@ -933,7 +933,7 @@ client.on("message", async (msg) => {
       await pushMessage(userId, "user", "[Media file sans texte]");
       try {
         await pool.query(
-          UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = ,
+          `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
           [userId]
         );
       } catch (_) {}
@@ -948,7 +948,7 @@ client.on("message", async (msg) => {
       }
       return;
     } else {
-      body = [SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ;
+      body = `[SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
     }
   }
 
