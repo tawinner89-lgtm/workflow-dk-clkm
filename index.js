@@ -933,7 +933,7 @@ client.on("message", async (msg) => {
       await pushMessage(userId, "user", "[Media file sans texte]");
       try {
         await pool.query(
-          UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = ,
+          `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
           [userId]
         );
       } catch (_) {}
@@ -1284,6 +1284,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
