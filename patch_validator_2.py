@@ -1,4 +1,6 @@
-const fs = require('fs');
+﻿import os
+
+code = """const fs = require('fs');
 const path = require('path');
 
 const allowedPriceStrs = new Set();
@@ -25,11 +27,11 @@ allowedPriceStrs.add("0");
         }
         if (config.repair_and_maintenance?.tarifs_services) {
             Object.values(config.repair_and_maintenance.tarifs_services).forEach(v => {
-                const numMatches = String(v).match(/\d+/g);
+                const numMatches = String(v).match(/\\d+/g);
                 if (numMatches) numMatches.forEach(m => allowedPriceStrs.add(m));
             });
         }
-        const numMatches = configText.match(/\d+/g);
+        const numMatches = configText.match(/\\d+/g);
         if (numMatches) numMatches.forEach(m => allowedPriceStrs.add(m));
     } catch(e) {
         console.error("Failed to load business.json for validator:", e.message);
@@ -43,7 +45,7 @@ async function validate(llmFn, reply, state, nextAction) {
     const lower = reply.toLowerCase();
 
     // SOFT FAIL: Sentence length constraint
-    const sentences = reply.split(/[.?!]+[\s\n]+/).filter(s => s.trim().length > 0);
+    const sentences = reply.split(/[.?!]+[\\s\\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length > 6) {
         return { valid: false, reason: "Message trop long. Maximum 6 phrases.", type: 'soft', tokens };
     }
@@ -61,11 +63,11 @@ async function validate(llmFn, reply, state, nextAction) {
     }
 
     // HARD FAIL: Currency check
-    const priceRegex = /(?:^|[\s\W])(\d[\d\s,.]*)\s*(?:dh|dhs|mad|dirham|dirhams)(?:[\s\W]|$)/gi;
+    const priceRegex = /(?:^|[\\s\\W])(\\d[\\d\\s,.]*)\\s*(?:dh|dhs|mad|dirham|dirhams)(?:[\\s\\W]|$)/gi;
     let rm;
     while ((rm = priceRegex.exec(lower)) !== null) {
         const rawNum = rm[1];
-        const numStr = rawNum.replace(/\D/g, "");
+        const numStr = rawNum.replace(/\\D/g, "");
         if (numStr && !allowedPriceStrs.has(numStr)) {
             return { valid: false, reason: `Prix inventé ou non autorisé: ${numStr}`, type: 'hard', tokens };
         }
@@ -82,3 +84,7 @@ async function validate(llmFn, reply, state, nextAction) {
 }
 
 module.exports = { validate };
+"""
+
+with open("lib/v2/validator.js", "w", encoding="utf-8") as f:
+    f.write(code)

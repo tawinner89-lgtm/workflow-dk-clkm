@@ -1,4 +1,6 @@
-const { FLOWS } = require('./flows');
+﻿import os
+
+code = """const { FLOWS } = require('./flows');
 const { normalizeIntent } = require('./intent');
 
 function planner(state, interp) {
@@ -68,3 +70,7 @@ function planner(state, interp) {
 }
 
 module.exports = { planner };
+"""
+
+with open("lib/v2/planner.js", "w", encoding="utf-8") as f:
+    f.write(code)

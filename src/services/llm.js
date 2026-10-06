@@ -34,7 +34,7 @@ async function askDeepSeek(messages, maxTokens, opts = {}) {
   return res.data.choices[0].message.content.trim();
 }
 
-async function askAI(messages, maxTokens = 800, opts = { json: false, temperature: 0.4 }) {
+async function askAI(messages, maxTokens = 800, retries = 3, opts = { json: false, temperature: 0.4 }) {
   // Ensure reasoning/JSON models have enough tokens
   if (opts.json && maxTokens < 1500) maxTokens = 1500;
 

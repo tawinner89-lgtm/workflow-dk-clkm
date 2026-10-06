@@ -1,4 +1,6 @@
-const { render } = require('./templates');
+﻿import os
+
+code = """const { render } = require('./templates');
 
 async function writeReply(llmFn, state, nextAction, recentHistory, rulesText) {
     if (nextAction.type === 'silent') return { text: "", tokens: 0, deterministic: true };
@@ -9,7 +11,7 @@ async function writeReply(llmFn, state, nextAction, recentHistory, rulesText) {
         return { text: fixedReply, tokens: 0, deterministic: true };
     }
 
-    const historyText = recentHistory.map(m => `${m.role === 'user' ? 'Client' : 'Bot'}: ${m.content}`).join('\n');
+    const historyText = recentHistory.map(m => `${m.role === 'user' ? 'Client' : 'Bot'}: ${m.content}`).join('\\n');
 
     let instruction = "";
     if (nextAction.type === 'answer_question') {
@@ -67,3 +69,7 @@ Génère UNIQUEMENT le texte de la réponse. Ne mets pas "Bot:" ou "Assistant:" 
 }
 
 module.exports = { writeReply };
+"""
+
+with open("lib/v2/writer.js", "w", encoding="utf-8") as f:
+    f.write(code)

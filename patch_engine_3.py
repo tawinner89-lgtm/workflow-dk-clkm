@@ -1,4 +1,6 @@
-const { interpret } = require('./interpret');
+﻿import os
+
+code = """const { interpret } = require('./interpret');
 const { planner } = require('./planner');
 const { writeReply } = require('./writer');
 const { validate } = require('./validator');
@@ -19,7 +21,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText = "") {
     // 0. Deterministic string sanitization
     let sanitizedMessage = customerMessage;
     if (typeof sanitizedMessage === 'string') {
-        sanitizedMessage = sanitizedMessage.replace(/j[\'’]aimerais en savoir plus sur votre entreprise\.?/gi, "").trim();
+        sanitizedMessage = sanitizedMessage.replace(/j[\\'’]aimerais en savoir plus sur votre entreprise\\.?/gi, "").trim();
     }
     
     // 1. Interpret
@@ -40,7 +42,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText = "") {
             
             // Strict persistence for critical pre-filled slots
             if (['name', 'phone', 'brand', 'btu', 'service_type', 'ac_type'].includes(key) && state.slots[key]) {
-                const isCorrection = /\b(non|en fait|plutôt|pardon|erreur|ghalat|machi)\b/i.test(sanitizedMessage);
+                const isCorrection = /\\b(non|en fait|plutôt|pardon|erreur|ghalat|machi)\\b/i.test(sanitizedMessage);
                 if (!isCorrection) continue;
             }
             
@@ -77,27 +79,20 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText = "") {
         turnTokens += validatorResult.tokens || 0;
         
         if (!validatorResult.valid) {
-            if (validatorResult.type === 'hard') {
-                console.error("[V2 VALIDATOR HARD FAIL]", validatorResult.reason);
+            console.warn("[V2 VALIDATOR RETRY]", validatorResult.reason);
+            const retryAction = { ...action, reason: action.reason + " (Retry: " + validatorResult.reason + ")" };
+            const rRes = await writeReply(llmFn, state, retryAction, history, rulesText);
+            reply = rRes.text;
+            turnTokens += rRes.tokens || 0;
+            
+            validatorResult = await validate(llmFn, reply, state, action);
+            turnTokens += validatorResult.tokens || 0;
+            
+            if (!validatorResult.valid) {
+                console.error("[V2 VALIDATOR FAILED TWICE]", validatorResult.reason);
                 reply = "Veuillez patienter, je transfère votre demande à un membre de notre équipe technique.";
                 action.type = "handoff";
-                action.reason = "validation_failure_hard";
-            } else {
-                console.warn("[V2 VALIDATOR RETRY]", validatorResult.reason);
-                const retryAction = { ...action, reason: action.reason + " (Retry: " + validatorResult.reason + ")" };
-                const rRes = await writeReply(llmFn, state, retryAction, history, rulesText);
-                reply = rRes.text;
-                turnTokens += rRes.tokens || 0;
-                
-                validatorResult = await validate(llmFn, reply, state, action);
-                turnTokens += validatorResult.tokens || 0;
-                
-                if (!validatorResult.valid) {
-                    console.error("[V2 VALIDATOR FAILED TWICE]", validatorResult.reason);
-                    reply = "Veuillez patienter, je transfère votre demande à un membre de notre équipe technique.";
-                    action.type = "handoff";
-                    action.reason = "validation_failure";
-                }
+                action.reason = "validation_failure";
             }
         }
     }
@@ -110,7 +105,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText = "") {
         if (state.intent === 'purchase' && !state.flags.sale_recorded) {
             try {
                 // NORMALIZATION: Ensure exact string format for DB (e.g. 9000_BTU)
-                let finalBtu = String(state.slots.btu).replace(/\D/g, "");
+                let finalBtu = String(state.slots.btu).replace(/\\D/g, "");
                 if (finalBtu) { finalBtu = `${finalBtu}_BTU`; }
 
                 console.log(`[INVENTORY] Triggering recordSale for ${state.slots.brand} - ${finalBtu}`);
@@ -150,3 +145,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText = "") {
 }
 
 module.exports = { runTurn, clean };
+"""
+
+with open("lib/v2/engine.js", "w", encoding="utf-8") as f:
+    f.write(code)
