@@ -950,7 +950,7 @@ Bonjour, notre équipe technique examinera ceci et vous répondra dans les plus 
       }
       return;
     } else {
-      body = [SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ;
+      body = `[SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
     }
   }
   
