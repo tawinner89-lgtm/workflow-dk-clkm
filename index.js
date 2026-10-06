@@ -799,6 +799,7 @@ async function notifyAdminV2(userId, slots) {
 }
 
 const activeMessageIds = new Map();
+const lastMediaReply = new Map();
 
 client.on("message", async (msg) => {
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
@@ -929,22 +930,30 @@ client.on("message", async (msg) => {
   // Media handler
   if (msg.hasMedia) {
     if (!body) {
-      await pushMessage(userId, "user", "[Image/Vidéo sans texte]");
+      await pushMessage(userId, "user", "[Media file sans texte]");
       try {
         await pool.query(
-          `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
+          UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = ,
           [userId]
         );
       } catch (_) {}
-      await msg.reply(
-        BOT_WATERMARK + "مرحبا، شي واحد من الفريق التقني غادي يشوف هادشي ويجاوبك فأقرب وقت.\n\nBonjour, un membre de notre équipe technique examinera ceci et vous répondra dans les plus brefs délais."
-      );
+      
+      const lastReply = lastMediaReply.get(userId) || 0;
+      const now = Date.now();
+      if (now - lastReply > 2 * 60 * 1000) {
+        lastMediaReply.set(userId, now);
+        await msg.reply(
+          BOT_WATERMARK + "مرحبا بك معنا، سيقوم أحد أعضاء الفريق التقني بمراجعة الملفات والرد عليك في أقرب وقت.
+
+Bonjour, notre équipe technique examinera ceci et vous répondra dans les plus brefs délais."
+        );
+      }
       return;
     } else {
-      body = `[SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
+      body = [SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ;
     }
   }
-
+  
   if (body.length > 1000) {
     body = body.substring(0, 1000) + "... (تم قطع الرسالة لأنها طويلة جداً)";
   }
