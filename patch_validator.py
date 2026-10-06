@@ -1,4 +1,6 @@
-const fs = require('fs');
+﻿import os
+
+code = """const fs = require('fs');
 const path = require('path');
 
 let allowedPriceStrs = ["0"];
@@ -36,7 +38,7 @@ async function validate(llmFn, reply, state, nextAction) {
     const lower = reply.toLowerCase();
 
     // 1. Sentence length constraint
-    const sentences = reply.split(/[.?!]+[\s\n]+/).filter(s => s.trim().length > 0);
+    const sentences = reply.split(/[.?!]+[\\s\\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length > 6) {
         return { valid: false, reason: "Message trop long. Maximum 6 phrases.", tokens };
     }
@@ -54,11 +56,11 @@ async function validate(llmFn, reply, state, nextAction) {
     }
 
     // 4. Currency check
-    const priceRegex = /(?:^|[\s\W])(\d[\d\s,.]*)\s*(?:dh|dhs|mad|dirham|dirhams)(?:[\s\W]|$)/gi;
+    const priceRegex = /(?:^|[\\s\\W])(\\d[\\d\\s,.]*)\\s*(?:dh|dhs|mad|dirham|dirhams)(?:[\\s\\W]|$)/gi;
     let rm;
     while ((rm = priceRegex.exec(lower)) !== null) {
         const rawNum = rm[1];
-        const numStr = rawNum.replace(/\D/g, "");
+        const numStr = rawNum.replace(/\\D/g, "");
         if (numStr && !allowedPriceStrs.includes(numStr)) {
             return { valid: false, reason: `Prix inventé ou non autorisé: ${numStr}`, tokens };
         }
@@ -76,3 +78,7 @@ async function validate(llmFn, reply, state, nextAction) {
 }
 
 module.exports = { validate };
+"""
+
+with open("lib/v2/validator.js", "w", encoding="utf-8") as f:
+    f.write(code)

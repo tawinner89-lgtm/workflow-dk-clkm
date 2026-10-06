@@ -1,4 +1,9 @@
-const axios = require("axios");
+﻿import os
+
+with open("src/services/llm.js", "r", encoding="utf-8") as f:
+    code = f.read()
+
+new_code = """const axios = require("axios");
 const { Groq } = require("groq-sdk");
 require("dotenv").config();
 
@@ -75,3 +80,7 @@ async function askAI(messages, maxTokens = 800, opts = { json: false, temperatur
 }
 
 module.exports = { askAI, askDeepSeek };
+"""
+
+with open("src/services/llm.js", "w", encoding="utf-8") as f:
+    f.write(new_code)

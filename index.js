@@ -1,3 +1,7 @@
+if (!process.env.ADMIN_PASSWORD) {
+  console.error('FATAL: ADMIN_PASSWORD is required');
+  process.exit(1);
+}
 ﻿"use strict";
 require('dotenv').config();
 
@@ -79,11 +83,9 @@ const CONFIG = {
   replyMaxTokens: 600,
   extractMaxTokens: 400,
   qrPort: parseInt(process.env.PORT, 10) || 3000,
-  adminWebhookUrl:
-    process.env.ADMIN_WEBHOOK_URL ||
-    "http://localhost:3001/api/webhook/make?token=dkclim-ia-2026",
-  notifyToken: process.env.WEBHOOK_SECRET || "dkclim-ia-2026",
-  adminPassword: process.env.ADMIN_PASSWORD || "dkclim2026",
+  adminWebhookUrl: process.env.ADMIN_WEBHOOK_URL,
+  notifyToken: process.env.WEBHOOK_SECRET,
+  adminPassword: process.env.ADMIN_PASSWORD,
   debounceDelay: 7000,
 };
 
@@ -143,6 +145,12 @@ async function initDB() {
     await pool.query(
       `CREATE INDEX IF NOT EXISTS "idx_botmessage_phone" ON "BotMessage" (phone);`
     );
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "InterventionSync" (
+        hash TEXT PRIMARY KEY,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "Inventory" (
         id SERIAL PRIMARY KEY,
@@ -799,6 +807,26 @@ async function notifyAdminV2(userId, slots) {
 }
 
 const activeMessageIds = new Map();
+const pendingBodies = new Map();
+const handoffCooldowns = new Map();
+
+async function notifyHandoff(userId, reason, turnBody) {
+    const now = Date.now();
+    const last = handoffCooldowns.get(userId) || 0;
+    if (now - last < 10 * 60 * 1000) return;
+    handoffCooldowns.set(userId, now);
+    
+    const adminMsg = `?[HANDOFF ALERT]
+User: ${userId}
+Reason: ${reason}
+Last Msg: ${turnBody}`;
+    for (const admin of TEAM_NUMBERS) {
+        try {
+            await client.sendMessage(normalizePhone(admin), adminMsg);
+        } catch(e) {}
+    }
+}
+
 const lastMediaReply = new Map();
 
 client.on("message", async (msg) => {
@@ -850,6 +878,8 @@ client.on("message", async (msg) => {
   
 
   let body = msg.body?.trim() || "";
+  if (!pendingBodies.has(userId)) pendingBodies.set(userId, []);
+  pendingBodies.get(userId).push(body);
 
   // Dynamic admin login
   const expectedPassword = CONFIG.adminPassword;
@@ -1125,6 +1155,13 @@ client.on("message", async (msg) => {
             await pool.query('CREATE TABLE IF NOT EXISTS "ConversationState" (phone VARCHAR(50) PRIMARY KEY, state JSONB, "updatedAt" TIMESTAMP DEFAULT NOW())').catch(()=>{});
         }
 
+        
+        const allBodies = pendingBodies.get(userId) || [];
+        const joinedBody = allBodies.join('\n');
+        pendingBodies.delete(userId);
+        
+        if (!joinedBody.trim() && !activeMessageIds.get(userId)) return;
+
         const history = await getHistory(userId);
         
         // --- V2 CONVERSATION ENGINE ---
@@ -1142,7 +1179,7 @@ client.on("message", async (msg) => {
           return { text, tokens: Math.round(prompt.length / 4) + Math.round(String(text).length / 4) };
         };
 
-        const v2Result = await runTurn(v2Llm, convState, body, history, businessRulesText);
+        const v2Result = await runTurn(v2Llm, convState, joinedBody, history, businessRulesText);
         
         try {
             await pool.query('INSERT INTO "ConversationState" (phone, state, "updatedAt") VALUES ($1, $2, NOW()) ON CONFLICT (phone) DO UPDATE SET state = EXCLUDED.state, "updatedAt" = NOW()', [userId, v2Result.newState]);
@@ -1184,7 +1221,19 @@ client.on("message", async (msg) => {
         console.log(`[OUT] ${reply.slice(0, 100)}`);
         
         if (v2Result.nextAction?.type === 'recap') {
-            notifyAdminV2(userId, v2Result.newState.slots).catch(err => console.error("[NOTIFY ERR]", err.message));
+          const crypto = require('crypto');
+          const hashStr = JSON.stringify([userId, convState.intent, convState.slots]);
+          const hash = crypto.createHash('sha256').update(hashStr).digest('hex');
+          try {
+              const res = await pool.query('INSERT INTO "InterventionSync" (hash) VALUES ($1) ON CONFLICT (hash) DO NOTHING RETURNING hash', [hash]);
+              if (res.rowCount > 0) {
+                  notifyAdminV2(userId, v2Result.newState.slots).catch(err => console.error("[NOTIFY ERR]", err.message));
+              }
+          } catch(e) {}
+        }
+        
+        if (v2Result.nextAction?.type === 'handoff') {
+            notifyHandoff(userId, v2Result.nextAction.reason, joinedBody).catch(()=>{});
         }
 
       } catch (innerErr) {
