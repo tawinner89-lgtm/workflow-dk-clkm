@@ -927,13 +927,13 @@ client.on("message", async (msg) => {
     return;
   }
 
-  // Media handler
+  ﻿// Media handler
   if (msg.hasMedia) {
     if (!body) {
       await pushMessage(userId, "user", "[Media file sans texte]");
       try {
         await pool.query(
-          `UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1`,
+          UPDATE "LeadStatus" SET reminder_count = 0, last_reminder_at = NULL WHERE phone = $1,
           [userId]
         );
       } catch (_) {}
@@ -943,17 +943,15 @@ client.on("message", async (msg) => {
       if (now - lastReply > 2 * 60 * 1000) {
         lastMediaReply.set(userId, now);
         await msg.reply(
-          BOT_WATERMARK + "مرحبا بك معنا، سيقوم أحد أعضاء الفريق التقني بمراجعة الملفات والرد عليك في أقرب وقت.
-
-Bonjour, notre équipe technique examinera ceci et vous répondra dans les plus brefs délais."
+          BOT_WATERMARK + "مرحبا بك، سيقوم أحد أعضاء الفريق التقني بمراجعة الملفات والرد عليك في أقرب وقت.\n\nBonjour, notre équipe technique examinera ceci et vous répondra dans les plus brefs délais."
         );
       }
       return;
     } else {
-      body = `[SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
+      body = [SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ;
     }
   }
-  
+
   if (body.length > 1000) {
     body = body.substring(0, 1000) + "... (تم قطع الرسالة لأنها طويلة جداً)";
   }
