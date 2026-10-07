@@ -1,5 +1,5 @@
 ﻿if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
-Ã¯Â»Â¿"use strict";
+"use strict";
 require('dotenv').config();
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -1349,6 +1349,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
