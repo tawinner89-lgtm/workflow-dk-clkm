@@ -80,8 +80,8 @@ export default async function InventoryPage() {
                         }).replace(',', ' ')}
                       </td>
                       <td className="py-4 px-5">
-                        <div className="font-medium text-slate-900 dark:text-white">{sale.brand}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">{sale.btu.replace('_', ' ')}</div>
+                        <div className="font-medium text-slate-900 dark:text-white">{sale.brand || "-"}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{sale.btu?.replace('_', ' ')}</div>
                       </td>
                       <td className="py-4 px-5">
                         <div className="text-sm font-medium text-slate-900 dark:text-white">{sale.customer_name || '-'}</div>
@@ -134,6 +134,7 @@ export default async function InventoryPage() {
     </div>
   );
 }
+
 
 
 
