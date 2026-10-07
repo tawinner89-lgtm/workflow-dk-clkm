@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 require('dotenv').config();
 if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
 process.on('unhandledRejection', (reason, promise) => {
