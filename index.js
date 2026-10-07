@@ -1,7 +1,6 @@
-﻿if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
-"use strict";
+﻿"use strict";
 require('dotenv').config();
-
+if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
 process.on('unhandledRejection', (reason, promise) => {
     if (reason && reason.message && reason.message.includes('Execution context was destroyed')) {
         console.warn('[PUPPETEER WARNING] Execution context destroyed. Ignoring to prevent crash.');
@@ -1349,6 +1348,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
