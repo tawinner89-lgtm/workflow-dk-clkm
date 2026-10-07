@@ -12,16 +12,18 @@ function createInventoryService(dbPool) {
     if (!brand || !normalizedBtu) return { status: 'invalid', available: false, alternatives: [] };
     try {
       const result = await dbPool.query(
-        `SELECT brand, btu, stock_quantity FROM "Inventory" WHERE UPPER(btu) = UPPER($1) AND stock_quantity > 0 ORDER BY CASE WHEN LOWER(brand) = LOWER($2) THEN 0 ELSE 1 END, brand ASC`,
+        `SELECT brand, btu, stock_quantity FROM "Inventory" WHERE UPPER(btu) = UPPER($1) ORDER BY CASE WHEN LOWER(brand) = LOWER($2) THEN 0 ELSE 1 END, brand ASC`,
         [normalizedBtu, brand]
       );
       const exact = result.rows.find(row => row.brand.toLowerCase() === String(brand).toLowerCase());
       return {
         status: 'checked',
-        available: Boolean(exact),
+        available: Boolean(exact && Number(exact.stock_quantity) > 0),
+        can_preorder: Boolean(!exact || Number(exact.stock_quantity) <= 0),
+        stock_quantity: exact ? Number(exact.stock_quantity) : 0,
         brand: exact?.brand || brand,
         btu: normalizedBtu,
-        alternatives: result.rows.filter(row => row.brand.toLowerCase() !== String(brand).toLowerCase()).map(row => ({ brand: row.brand, btu: normalizedBtu, stock: row.stock_quantity }))
+        alternatives: result.rows.filter(row => row.brand.toLowerCase() !== String(brand).toLowerCase() && Number(row.stock_quantity) > 0).map(row => ({ brand: row.brand, btu: normalizedBtu, stock: row.stock_quantity }))
       };
     } catch (error) {
       console.error('[INVENTORY ERROR availability]', error.message);
@@ -29,7 +31,7 @@ function createInventoryService(dbPool) {
     }
   }
 
-  async function recordSale(brand, btu, customerName, customerPhone) {
+  async function recordSale(brand, btu, customerName, customerPhone, price = null) {
     let client;
     const normalizedBtu = normalizeBtu(btu);
     if (!brand || !normalizedBtu) {
@@ -52,8 +54,8 @@ function createInventoryService(dbPool) {
       );
       if (update.rowCount > 0) {
         await client.query(
-          `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status) VALUES ($1, $2, $3, $4, 'PENDING')`,
-          [brand, normalizedBtu, customerName || null, customerPhone || null]
+          `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes) VALUES ($1, $2, $3, $4, 'PENDING', $5)`,
+          [brand, normalizedBtu, customerName || null, customerPhone || null, price ? `Prix catalogue: ${price} DH` : null]
         );
         await client.query('COMMIT');
         return { ok: true, stockUpdated: true, status: 'PENDING' };
@@ -63,13 +65,13 @@ function createInventoryService(dbPool) {
         `SELECT stock_quantity FROM "Inventory" WHERE brand ILIKE $1 AND UPPER(btu) = UPPER($2) ORDER BY id LIMIT 1 FOR UPDATE`,
         [brand, normalizedBtu]
       );
-      const reason = check.rows.length > 0 && Number(check.rows[0].stock_quantity) <= 0 ? 'OUT_OF_STOCK' : 'NOT_FOUND';
+      const reason = check.rows.length === 0 || Number(check.rows[0].stock_quantity) <= 0 ? 'PREORDER' : 'NOT_FOUND';
       await client.query(
-        `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status) VALUES ($1, $2, $3, $4, $5)`,
-        [brand, normalizedBtu, customerName || null, customerPhone || null, reason]
+        `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [brand, normalizedBtu, customerName || null, customerPhone || null, reason, price ? `Commande spéciale 24-48h; prix catalogue: ${price} DH` : 'Commande spéciale 24-48h']
       );
       await client.query('COMMIT');
-      return { ok: false, stockUpdated: false, reason };
+      return { ok: reason === 'PREORDER', stockUpdated: false, status: reason, reason };
     } catch (error) {
       try { await client.query('ROLLBACK'); } catch (rollbackError) { console.error('[INVENTORY ERROR rollback]', rollbackError.message); }
       console.error('[INVENTORY ERROR recordSale]', error.stack || error.message);

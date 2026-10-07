@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { adjustStock } from '@/app/actions';
+import { getCatalogOffers } from '@/lib/business';
 
 const handleAdjust = async (id: number, amount: number) => {
   try {
@@ -51,6 +52,7 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
             const items = grouped[brand];
             const activeBtu = selectedBtus[brand] || items[0].btu;
             const activeItem = items.find(i => i.btu === activeBtu) || items[0];
+            const activeOffers = getCatalogOffers(brand, activeBtu);
 
             return (
               <tr key={brand} className="hover:bg-slate-50/50 transition-colors group">
@@ -75,6 +77,18 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
                       );
                     })}
                   </div>
+                  {activeOffers.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {activeOffers.map(offer => (
+                        <div key={`${offer.brand}-${offer.btu}-${offer.modele}`} className="text-xs text-slate-600">
+                          <span>{offer.modele}: </span>
+                          {offer.prix_normal ? <span className="mr-1 text-slate-400 line-through">{offer.prix_normal} DH TTC</span> : null}
+                          <span className="font-semibold text-slate-900">{offer.prix_promo} DH TTC</span>
+                          {offer.installation_incluse ? <span className="ml-1 text-emerald-700">• Installation incluse</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="py-3 px-5 text-right align-middle">
                   <div className="flex items-center justify-end gap-2">

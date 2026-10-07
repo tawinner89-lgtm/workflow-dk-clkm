@@ -20,7 +20,7 @@ function normalizeIntent(raw) {
         'entretien': 'maintenance', 'nettoyage': 'maintenance', 'maintenance': 'maintenance', 'nettoyage': 'maintenance', 'entretient': 'maintenance',
         'installation': 'installation', 'montage': 'installation', 'rkeb': 'installation', 'nrakb': 'installation', 'tarkib': 'installation', 'installer': 'installation',
         'achat': 'purchase', 'chra': 'purchase', 'buy': 'purchase', 'purchase': 'purchase', 'chri': 'purchase',
-        'prix': 'price', 'tarif': 'price', 'taman': 'price', 'ch7al': 'price', 'combien': 'price', 'price': 'price', 'bch7al': 'price',
+        'prix': 'price', 'tarif': 'price', 'taman': 'price', 'ch7al': 'price', 'combien': 'price', 'price': 'price', 'bch7al': 'price', 'devis': 'price', 'quote': 'price',
         'emploi': 'job', 'recrutement': 'job', 'travail': 'job', 'job': 'job', 'khdma': 'job', 'stage': 'job'
     };
     // fuzzy: contains

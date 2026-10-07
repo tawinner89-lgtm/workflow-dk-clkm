@@ -19,8 +19,12 @@ const crypto = require("crypto");
 const path = require("path");
 const http = require("http");
 const { spawn } = require("child_process");
+const qrTerminal = require("qrcode-terminal");
 const { pool } = require("./src/config/db");
-const { normalizePhone, normalizePhoneWithSuffix } = require("./src/utils");
+const { normalizePhone, normalizePhoneWithSuffix, getMoroccanPhone } = require("./src/utils");
+const { createConfirmedBooking } = require("./src/services/interventions");
+const { render } = require("./lib/v2/templates");
+const { renderQrSvg } = require("./src/utils/qr");
 const BUSINESS_RULES_TEXT = JSON.stringify(require("../shared/business.json"), null, 2);
 
 // ---------------------------------------------------------
@@ -143,8 +147,45 @@ async function initDB() {
         btu VARCHAR(50),
         customer_name VARCHAR(100),
         customer_phone VARCHAR(50),
-        status VARCHAR(20) DEFAULT 'PENDING'
+        status VARCHAR(20) DEFAULT 'PENDING',
+        notes TEXT
       );
+    `);
+    await pool.query(`ALTER TABLE "SalesLog" ADD COLUMN IF NOT EXISTS notes TEXT`);
+
+    // Keep bot writes compatible with the dashboard schema when a deployment
+    // starts before the Prisma migration has been applied. These are additive
+    // and idempotent; existing intervention and technician data is preserved.
+    await pool.query(`
+      ALTER TABLE "Intervention"
+        ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS intent TEXT,
+        ADD COLUMN IF NOT EXISTS symptom TEXT,
+        ADD COLUMN IF NOT EXISTS ac_type TEXT,
+        ADD COLUMN IF NOT EXISTS units INTEGER,
+        ADD COLUMN IF NOT EXISTS brand TEXT,
+        ADD COLUMN IF NOT EXISTS btu TEXT,
+        ADD COLUMN IF NOT EXISTS budget DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS room_area DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS day TEXT,
+        ADD COLUMN IF NOT EXISTS time_window TEXT,
+        ADD COLUMN IF NOT EXISTS "syncHash" TEXT;
+    `);
+    await pool.query(`
+      ALTER TABLE "Technician"
+        ADD COLUMN IF NOT EXISTS "isAvailable" BOOLEAN NOT NULL DEFAULT TRUE;
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "Intervention_syncHash_key"
+      ON "Intervention" ("syncHash");
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS "Intervention_createdAt_idx"
+      ON "Intervention" ("createdAt");
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS "Intervention_technicianName_status_idx"
+      ON "Intervention" ("technicianName", status);
     `);
     
     await pool.query(`
@@ -191,7 +232,8 @@ async function initDB() {
 // ---------------------------------------------------------
 // HTTP Server (Unified Router)
 // ---------------------------------------------------------
-const QR_HTML_PATH = "qr.html";
+const QR_HTML_PATH = path.join(__dirname, "qr.html");
+fs.writeFileSync(QR_HTML_PATH, `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DK Clim - WhatsApp</title><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0b1b24;color:#fff"><h2>Connexion WhatsApp en cours…</h2><p>La page se mettra à jour automatiquement.</p></body></html>`, "utf8");
 
 const httpServer = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${CONFIG.qrPort}`);
@@ -626,26 +668,26 @@ const client = new Client({
 
 let qrBrowserOpened = false;
 client.on("qr", (qr) => {
-  const imgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(
-    qr
-  )}`;
+  const qrSvg = renderQrSvg(qr);
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="refresh" content="20">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>DK Clim - Scan QR</title>
-  <style>body{font-family:sans-serif;text-align:center;padding:40px;background:#0b1b24;color:#fff}</style>
+  <style>body{font-family:sans-serif;text-align:center;padding:32px;background:#0b1b24;color:#fff}.qr{background:#fff;padding:12px;width:min(360px,80vw);margin:24px auto}.qr svg{display:block;width:100%;height:auto}</style>
 </head>
 <body>
   <h2>📱 Scannez avec WhatsApp</h2>
-  <img src="${imgUrl}" alt="QR Code" width="360">
+  <div class="qr">${qrSvg}</div>
   <p style="opacity:.6">La page se rafraîchit automatiquement toutes les 20 secondes.</p>
 </body>
 </html>`;
 
   fs.writeFileSync(QR_HTML_PATH, html, "utf8");
   console.log(`[QR] Open http://localhost:${CONFIG.qrPort}`);
+  qrTerminal.generate(qr, { small: true });
 
   if (!qrBrowserOpened) {
     if (process.platform === "win32" && process.env.NODE_ENV !== "production") {
@@ -662,8 +704,14 @@ client.on("qr", (qr) => {
 
 client.on("ready", async () => {
   console.log("✅ WhatsApp Client is READY!");
+  fs.writeFileSync(QR_HTML_PATH, `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DK Clim - WhatsApp connecté</title><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0b1b24;color:#fff"><h2>✅ WhatsApp est connecté</h2><p>Le bot DK Clim est prêt.</p></body></html>`, "utf8");
   qrBrowserOpened = true;
 });
+
+client.on("authenticated", () => console.log('[WA AUTHENTICATED] Session authentifiée.'));
+client.on("auth_failure", (message) => console.error('[WA AUTH FAILURE]', String(message).slice(0, 200)));
+client.on("loading_screen", (percent, message) => console.log(`[WA LOADING] ${percent}% ${String(message || '').slice(0, 80)}`));
+client.on("change_state", (state) => console.log(`[WA STATE] ${state}`));
 
 // ---------------------------------------------------------
 // Message State & Queues
@@ -711,80 +759,38 @@ client.on("message_create", async (msg) => {
   }
 });
 
-async function notifyAdminV2(userId, slots, intent, syncHash) {
-    let problem = slots.symptom || "Demande via V2 Bot";
-    if (intent === 'purchase') {
-        problem = `Achat ${slots.brand || 'Inconnu'} ${slots.btu || ''}, install_mode: ${slots.install_mode || 'Non spécifié'}`;
-    }
-
-  let assignedTech = null;
-  try {
-    const techRes = await pool.query("SELECT name, phone FROM \"Technician\" WHERE phone IS NOT NULL AND phone != '' AND \"isAvailable\" = TRUE");
-    if (techRes.rows.length > 0) assignedTech = techRes.rows[Math.floor(Math.random() * techRes.rows.length)];
-  } catch (error) {
-    console.error('[TECHNICIAN LOOKUP]', error.message);
+async function notifyAdminV2(userId, slots, intent) {
+  const result = await createConfirmedBooking(userId, intent, slots);
+  if (!result.ok) {
+    console.error('[V2 INTERVENTION NOT SAVED]', result.reason, result.missing || result.error || '');
+    return result;
   }
 
-    const payload = {
-      clientName: slots.name || "Inconnu",
-      clientAddress: slots.address || "Inconnu",
-      clientContactPhone: slots.phone || userId,
-      proposedTime: slots.day ? `${slots.day} ${slots.time_window_or_hour || ''}` : "N/A",
-      problemReported: problem,
-    type: intent || "Inconnu",
-    intent,
-    symptom: slots.symptom || null,
-    ac_type: slots.ac_type || null,
-    units: slots.units ? Number(slots.units) : null,
-    brand: slots.brand || null,
-    btu: slots.btu || null,
-    budget: slots.budget ? Number(String(slots.budget).replace(/\D/g, '')) : null,
-    room_area: slots.room_area ? Number(String(slots.room_area).replace(/\D/g, '')) : null,
-    day: slots.day || null,
-    time_window: slots.time_window_or_hour || null,
-    syncHash,
-    technicianName: assignedTech?.name || "A assigner (V2 Bot)",
-  };
+  const intervention = result.intervention;
+  console.log(`[V2 INTERVENTION SAVED] ${intervention.reference} (${result.duplicate ? 'duplicate' : 'new'})`);
+  if (result.duplicate) return result;
 
-  console.log("\n✅ [V2 BOOKING DETECTED]", payload);
-  let synced = false;
-  try {
-    const crypto = require('crypto');
-    const payloadString = JSON.stringify(payload);
-    const secret = process.env.WEBHOOK_SECRET;
-    if (!secret || !CONFIG.adminWebhookUrl) { console.error('Webhook URL or WEBHOOK_SECRET missing; dashboard sync skipped'); return false; }
-    const signature = crypto.createHmac('sha256', secret).update(payloadString).digest('hex');
-    const res = await axios.post(CONFIG.adminWebhookUrl, payloadString, {
-      headers: {
-        "x-webhook-signature": signature,
-        "Content-Type": "application/json",
-      },
-      timeout: 6000,
-    });
-    console.log("[V2 SYNC OK]", res.data?.data?.reference || "OK");
-    synced = res.data?.success === true;
-  } catch (err) {
-    console.error("[V2 SYNC FAIL]", err.response?.data || err.message);
-    return false;
-  }
-
-  if (assignedTech && assignedTech.phone) {
-    const techChatId = normalizePhoneWithSuffix(assignedTech.phone);
-    let timeSuffix = '_Merci de contacter le client pour confirmer l\'heure de visite._';
-    if (payload.proposedTime !== "N/A") {
-      timeSuffix = `🕐 *Créneau:* ${payload.proposedTime}\n\n${timeSuffix}`;
-    }
+  if (result.technician?.phone) {
+    const techChatId = normalizePhoneWithSuffix(result.technician.phone);
     const notifMsg =
-      `🚨 *NOUVELLE INTERVENTION ASSIGNÉE* 🚨\n\n` +
-      `👤 *Client:* ${payload.clientName}\n` +
-      `📍 *Adresse:* ${payload.clientAddress}\n` +
-      `📞 *Téléphone:* ${payload.clientContactPhone}\n` +
-      `🔧 *Problème/Type:* ${payload.problemReported} (${payload.type})\n\n` +
-      timeSuffix;
-
-    client.sendMessage(techChatId, BOT_WATERMARK + notifMsg).catch((err) => console.error("Failed to notify tech:", err.message));
+      `🚨 *INTERVENTION DK CLIM*\n\n` +
+      `👤 *Client:* ${intervention.clientName}\n` +
+      `📍 *Adresse:* ${intervention.clientAddress}\n` +
+      `📞 *Téléphone:* ${intervention.clientContactPhone}\n` +
+      `🔧 *Demande:* ${intervention.problemReported} (${intervention.type})\n` +
+      `🕐 *Créneau:* ${intervention.startTime}\n` +
+      `🔖 *Référence:* ${intervention.reference}`;
+    try {
+      await client.sendMessage(techChatId, BOT_WATERMARK + notifMsg);
+      console.log(`[TECH NOTIFIED] ${intervention.reference}`);
+    } catch (error) {
+      console.error('[TECH NOTIFICATION FAILED]', intervention.reference, error.message);
+    }
+  } else {
+    console.warn(`[NO AVAILABLE TECHNICIAN] ${intervention.reference}; admin assignment required`);
+    await notifyHandoff(userId, 'no_available_technician', intervention.reference);
   }
-  return synced;
+  return result;
 }
 
 const activeMessageIds = new Map();
@@ -1117,7 +1123,7 @@ client.on("message", async (msg) => {
         let convState = {
             intent: null,
             stage: "INITIAL",
-            slots: { phone: rawPhone },
+            slots: { phone: getMoroccanPhone(rawPhone) },
             flags: {},
             last_bot_text: null,
             last_bot_question_slot: null
@@ -1138,6 +1144,13 @@ client.on("message", async (msg) => {
             await pool.query('CREATE TABLE IF NOT EXISTS "ConversationState" (phone VARCHAR(50) PRIMARY KEY, state JSONB, "updatedAt" TIMESTAMP DEFAULT NOW())').catch(()=>{});
         }
 
+        convState.slots ||= {};
+        const validatedSavedPhone = getMoroccanPhone(convState.slots.phone);
+        const validatedWhatsAppPhone = getMoroccanPhone(rawPhone);
+        if (validatedSavedPhone) convState.slots.phone = validatedSavedPhone;
+        else if (validatedWhatsAppPhone) convState.slots.phone = validatedWhatsAppPhone;
+        else delete convState.slots.phone;
+
         
         const allBodies = pendingBodies.get(userId) || [];
         const joinedBody = allBodies.join('\n');
@@ -1152,7 +1165,10 @@ client.on("message", async (msg) => {
         const { askAI } = require('./src/services/llm');
         
         const v2Llm = async (prompt, opts = {}) => {
-            return askAI([{ role: "user", content: prompt }], 800, 3, opts);
+            const messages = [];
+            if (opts.system) messages.push({ role: "system", content: opts.system });
+            messages.push({ role: "user", content: prompt });
+            return askAI(messages, 800, 3, opts);
           };
 
         const v2Result = await runTurn(v2Llm, convState, joinedBody, history, BUSINESS_RULES_TEXT);
@@ -1160,6 +1176,19 @@ client.on("message", async (msg) => {
         
 
         let reply = v2Result.reply;
+
+        if (v2Result.isAppointmentConfirmed) {
+          const bookingResult = await notifyAdminV2(userId, v2Result.newState.slots, v2Result.newState.intent);
+          if (!bookingResult.ok) {
+            v2Result.nextAction = { type: 'handoff', reason: 'intervention_save_failed', slots: [] };
+            v2Result.newState.stage = 'HANDOFF';
+            reply = render(v2Result.newState, v2Result.nextAction);
+          }
+        }
+
+        if (v2Result.saleResult?.ok) {
+          console.log(`[SALE LOGGED] ${v2Result.newState.slots.brand} ${v2Result.newState.slots.btu} (${v2Result.saleResult.status})`);
+        }
 
                 if (!reply || reply.trim() === "") {
           if (v2Result.nextAction?.type === 'silent') {
@@ -1199,20 +1228,6 @@ client.on("message", async (msg) => {
 
         console.log(`[OUT] ${reply.slice(0, 100)}`);
         try { await pool.query('INSERT INTO "ConversationState" (phone, state, "updatedAt") VALUES ($1, $2, NOW()) ON CONFLICT (phone) DO UPDATE SET state = EXCLUDED.state, "updatedAt" = NOW()', [userId, v2Result.newState]); } catch (e) {}
-        
-        if (v2Result.isAffirmationAfterRecap) {
-          const crypto = require('crypto');
-          const hashStr = JSON.stringify([userId, convState.intent, convState.slots]);
-          const hash = crypto.createHash('sha256').update(hashStr).digest('hex');
-          try {
-              const res = await pool.query('INSERT INTO "InterventionSync" (hash) VALUES ($1) ON CONFLICT (hash) DO NOTHING RETURNING hash', [hash]);
-              if (res.rowCount > 0) {
-                  notifyAdminV2(userId, v2Result.newState.slots, v2Result.newState.intent, hash).then(synced => {
-                    if (!synced) return pool.query('DELETE FROM "InterventionSync" WHERE hash = $1', [hash]);
-                  }).catch(err => console.error("[NOTIFY ERR]", err.message));
-              }
-          } catch(e) {}
-        }
         
         if (v2Result.nextAction?.type === 'handoff') {
             notifyHandoff(userId, v2Result.nextAction.reason, joinedBody).catch(()=>{});
@@ -1306,7 +1321,7 @@ process.on("unhandledRejection", (reason) => {
 // ---------------------------------------------------------
 (async () => {
   await initDB();
-  client.initialize();
+  client.initialize().catch((error) => console.error('[WA INIT ERROR]', error.message));
 })();
 
 module.exports = { pool };

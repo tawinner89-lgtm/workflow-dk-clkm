@@ -93,6 +93,7 @@ model SalesLog {
   customer_name  String?
   customer_phone String?
   status         String?  @default("PENDING")
+  notes          String?
 
   @@index([status])
   @@map("SalesLog")

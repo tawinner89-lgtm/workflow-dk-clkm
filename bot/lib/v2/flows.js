@@ -12,9 +12,9 @@ const FLOWS = {
         order: ["ac_type", "symptom", "units", "name", "address", "phone", "day", "time_window_or_hour"],
     },
     purchase: {
-        required: ['btu', 'brand', 'budget', 'address', 'phone'],
-        optional: ['name', 'room_area', 'install_mode', 'ac_type'],
-        order: ['btu', 'brand', 'budget', 'address', 'phone']
+        required: ['btu', 'brand', 'name', 'address', 'phone'],
+        optional: ['budget', 'room_area', 'install_mode', 'ac_type', 'day', 'time_window_or_hour'],
+        order: ['btu', 'brand', 'name', 'address', 'phone']
     },
     installation: {
         required: ["name", "address", "phone", "install_mode", "day", "time_window_or_hour"],
@@ -57,6 +57,10 @@ const QUESTIONS = {
     budget: {
         fr: ["Quel budget avez-vous prévu pour le climatiseur ?"],
         ar: ["Ch7al lbudget li 7ad lclim? Goul lia ta9riban ch7al bghiti tsref."]
+    },
+    recommendation_group: {
+        fr: ["Pour vous conseiller au mieux, quelle est la superficie de la pièce en m² et votre budget approximatif ?"],
+        ar: ["Bach n3awnk a7sen haja, ch7al surface dyal lbit b m2 w budget ta9riban?"],
     },
     name: {
         fr: ["Quel est votre nom complet, s'il vous plaît ?"],

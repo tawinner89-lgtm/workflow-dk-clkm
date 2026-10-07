@@ -87,6 +87,7 @@ export default async function InventoryPage() {
                       <td className="py-4 px-5">
                         <div className="font-medium text-slate-900 dark:text-white">{sale.brand || "-"}</div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">{sale.btu?.replace('_', ' ')}</div>
+                        {(sale as typeof sale & { notes?: string | null }).notes && <div className="text-[11px] text-blue-600 dark:text-blue-300">{(sale as typeof sale & { notes?: string | null }).notes}</div>}
                       </td>
                       <td className="py-4 px-5">
                         <div className="text-sm font-medium text-slate-900 dark:text-white">{sale.customer_name || '-'}</div>
@@ -96,8 +97,9 @@ export default async function InventoryPage() {
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase
                           ${sale.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800' : 
                             sale.status === 'CANCELLED' || sale.status === 'OUT_OF_STOCK' ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:border-red-800' : 
+                            sale.status === 'PREORDER' ? 'bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-900/30 dark:border-blue-800' :
                             'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/30 dark:border-amber-800'}`}>
-                          {sale.status === 'CONFIRMED' ? 'Confirme' : sale.status === 'CANCELLED' ? 'Annule' : sale.status === 'OUT_OF_STOCK' ? 'Rupture' : 'En Attente'}
+                          {sale.status === 'CONFIRMED' ? 'Confirme' : sale.status === 'CANCELLED' ? 'Annule' : sale.status === 'OUT_OF_STOCK' ? 'Rupture' : sale.status === 'PREORDER' ? 'Commande à importer' : 'En Attente'}
                         </span>
                       </td>
                       <td className="py-4 px-5">

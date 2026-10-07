@@ -7,12 +7,9 @@ function addNumbers(value) {
     const found = String(value ?? '').match(/\d+(?:[\s,.]\d+)*/g) || [];
     found.forEach(n => allowedPriceStrs.add(n.replace(/\D/g, '')));
 }
-addNumbers(business.prices || {});
-for (const offers of Object.values(business.sales_catalog?.promotions_completes || {})) {
-    for (const offer of offers) {
-        addNumbers(offer.prix_promo);
-        addNumbers(offer.ancien_prix);
-    }
+for (const offer of business.sales_catalog?.promotions_completes || []) {
+    addNumbers(offer.prix_promo);
+    addNumbers(offer.prix_normal);
 }
 addNumbers(business.repair_and_maintenance?.tarifs_services || {});
 const allowedBrands = new Set(business.sales_catalog.brands_in_stock.map(v => v.toLowerCase()));

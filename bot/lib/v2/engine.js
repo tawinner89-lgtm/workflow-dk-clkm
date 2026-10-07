@@ -4,7 +4,8 @@ const { planner } = require('./planner');
 const { writeReply } = require('./writer');
 const { validate } = require('./validator');
 const { render } = require('./templates');
-const { recordSale, getProductAvailability } = require('../../src/services/inventory');
+const { recordSale, getProductAvailability, getCurrentStock } = require('../../src/services/inventory');
+const business = require('../../../shared/business.json');
 const { normalizeIntent } = require('./intent');
 const { getOffer } = require('./templates');
 function clean(val) {
@@ -25,7 +26,15 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
     const interp=await interpret(llmFn, state, sanitized);
     turnTokens+=interp._tokens||0;
     if (interp.detected_language) state.language=interp.detected_language;
+    if (interp.is_lost) state.flags.recommendation_mode = true;
     if (interp.intent_change) state.intent=normalizeIntent(interp.intent_change) || state.intent;
+    if (interp.is_correction && Array.isArray(interp.clear_slots)) {
+        for (const slot of interp.clear_slots) delete state.slots[slot];
+        if (interp.clear_slots.some(slot => slot === 'brand' || slot === 'btu')) {
+            delete state.flags.stock_check;
+            delete state.slots.model_variant;
+        }
+    }
     const affirmative = /^(?:oui|yes|ok|okay|d'accord|wakha|mezian|yallah|sir)(?:\b|\s|[!.])/iu.test(sanitized.trim());
     const oldBrand = state.slots.brand;
     const oldBtu = state.slots.btu;
@@ -36,13 +45,31 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
         for (const [k, raw] of Object.entries(interp.slot_updates)) {
             const v=clean(raw); if(v===null) continue;
             if (['name','phone','brand','btu','service_type','ac_type'].includes(k) && state.slots[k] && state.last_bot_question_slot !== k && !(acceptedAlternative && k === 'brand')) {
-                const isCorr=/\b(non|en fait|plutot|pardon|erreur|ghalat|machi)\b/i.test(sanitized);
+                const isCorr=Boolean(interp.is_correction) || /\b(non|en fait|plutot|pardon|erreur|ghalat|machi)\b/i.test(sanitized);
                 if(!isCorr) continue;
             }
             state.slots[k]=v;
         }
     }
-    if (oldBrand !== state.slots.brand || oldBtu !== state.slots.btu) delete state.flags.stock_check;
+    if (oldBrand !== state.slots.brand || oldBtu !== state.slots.btu) {
+        delete state.flags.stock_check;
+        if (!interp.slot_updates?.model_variant) delete state.slots.model_variant;
+    }
+    if (state.intent === 'purchase' && state.flags.recommendation_mode && !state.slots.brand && state.slots.btu && state.slots.budget) {
+        const budget = Number(String(state.slots.budget).replace(/\D/g, ''));
+        const stockRows = await getCurrentStock();
+        const candidates = business.sales_catalog.promotions_completes
+            .filter(offer => offer.btu.toUpperCase() === String(state.slots.btu).toUpperCase() && Number(offer.prix_promo) <= budget)
+            .map(offer => ({ brand: offer.brand, btu: offer.btu, modele: offer.modele, price: Number(offer.prix_promo), stock: stockRows.find(row => row.brand.toLowerCase() === offer.brand.toLowerCase() && row.btu.toUpperCase() === offer.btu.toUpperCase())?.stock_quantity || 0 }))
+            .filter(product => Number(product.stock) > 0).sort((a, b) => a.price - b.price);
+        if (candidates[0]) {
+            state.slots.brand = candidates[0].brand;
+            state.slots.model_variant = candidates[0].modele;
+            state.flags.stock_check = { status: 'checked', available: true, can_preorder: false, stock_quantity: Number(candidates[0].stock), alternatives: [] };
+            state.flags.recommended_offer = candidates[0];
+            state.flags.recommendation_mode = false;
+        }
+    }
     const ans=clean(interp.answers_to_slot);
     if (ans && !state.slots[ans]) state.slots[ans]=sanitized;
     if (interp.acceptance?.price_accepted) state.flags.price_accepted=true;
@@ -60,20 +87,28 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
     }
     let action;
     let saleResult = null;
-    if (prevStage === 'RECAP' && state.intent === 'purchase' && affirmative) {
-        if (!state.flags.stock_check?.available) {
+    const appointmentConfirmed = prevStage === 'RECAP' && affirmative && ['repair', 'maintenance', 'installation'].includes(state.intent);
+    if (appointmentConfirmed) {
+        action = { type: 'close', reason: 'booking_confirmed', slots: [] };
+    } else if (prevStage === 'RECAP' && state.intent === 'purchase' && affirmative) {
+        if (!state.flags.stock_check?.available && !state.flags.stock_check?.can_preorder) {
             action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
         } else if (!state.flags.sale_recorded) {
-            saleResult = await recordSale(state.slots.brand, state.slots.btu, state.slots.name, state.slots.phone);
+            const saleOffer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
+            saleResult = await recordSale(state.slots.brand, state.slots.btu, state.slots.name, state.slots.phone, saleOffer?.prix_promo);
             if (saleResult.ok) {
                 state.flags.sale_recorded = true;
-                action = { type: 'close', reason: 'sale_pending', slots: [] };
+                action = { type: 'close', reason: saleResult.status === 'PREORDER' ? 'sale_preorder' : 'sale_pending', slots: [] };
             } else if (saleResult.reason === 'OUT_OF_STOCK') {
                 state.flags.stock_check = await getProductAvailability(state.slots.brand, state.slots.btu);
                 if (state.flags.stock_check.status === 'checked') {
                     state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
                 }
-                if (!state.flags.stock_check.available) action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
+                if (state.flags.stock_check.can_preorder) {
+                    saleResult = await recordSale(state.slots.brand, state.slots.btu, state.slots.name, state.slots.phone, saleOffer?.prix_promo);
+                    if (saleResult.ok) { state.flags.sale_recorded = true; action = { type: 'close', reason: 'sale_preorder', slots: [] }; }
+                    else action = { type: 'handoff', reason: 'sale_record_failed', slots: [] };
+                } else if (!state.flags.stock_check.available) action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
                 else action = { type: 'handoff', reason: 'inventory_race', slots: [] };
             } else {
                 action = { type: 'handoff', reason: 'sale_record_failed', slots: [] };
@@ -89,7 +124,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
         if (state.flags.stock_check.status === 'checked') {
             state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
         }
-        if (action.type === 'recap' && !state.flags.stock_check.available) action = planner(state, interp);
+        if (action.type === 'recap' && !state.flags.stock_check.available && !state.flags.stock_check.can_preorder) action = planner(state, interp);
     }
     let reply=""; let validatorResult={valid:true};
     if (action.type!=='silent') {
@@ -116,13 +151,13 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
             }
         }
     }
-    console.log('[V2]', JSON.stringify({msg:sanitized.slice(0,60), intent:interp.intent_change||state.intent, action:action.type, slot:action.slots?.[0]}));
+    console.log('[V2]', JSON.stringify({ intent: interp.intent_change || state.intent, action: action.type, reason: action.reason || null, slot: action.slots?.[0] || null, language: state.language || 'ar', stage: state.stage }));
     if (action.type==='recap') state.stage='RECAP';
     else if (action.type==='handoff') state.stage='HANDOFF';
     else if (action.type==='close' || action.reason==='closing') state.stage='CLOSED';
     else if (state.stage==='INITIAL' && state.intent) state.stage='COLLECT';
     const isAffirmationAfterRecap=(prevStage==='RECAP' && state.intent==='purchase' && affirmative && Boolean(saleResult?.ok || state.flags.sale_recorded));
     if (reply) { state.last_bot_text=reply; state.last_bot_question_slot=(action.type==='ask'&&action.slots.length>0)?action.slots[0]:null; }
-    return { newState: state, interpretation: interp, nextAction: action, isAffirmationAfterRecap, saleResult, reply, validatorResult, tokens: turnTokens };
+    return { newState: state, interpretation: interp, nextAction: action, isAffirmationAfterRecap, isAppointmentConfirmed: appointmentConfirmed, saleResult, reply, validatorResult, tokens: turnTokens };
 }
 module.exports = { runTurn, clean };

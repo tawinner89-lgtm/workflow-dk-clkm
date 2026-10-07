@@ -1,8 +1,8 @@
 {
   "sales_catalog": {
     "brands_in_stock": [
-      "Carrier",
       "CIAT",
+      "Carrier",
       "Daikool",
       "TCL",
       "LG",
@@ -19,89 +19,119 @@
       "Gainable",
       "Cassette"
     ],
-    "out_of_stock_policy": "Si le client demande à ACHETER une marque hors liste, NE JAMAIS REFUSER. Répondre : 'Nous allons vérifier la disponibilité et vous proposer un devis.'",
-    "promotions_completes": {
-      "carrier": [
-        {
-          "btu": "9000_BTU",
-          "modele": "Inverter R32 A++ WiFi",
-          "ancien_prix": 5999,
-          "prix_promo": 4399
-        },
-        {
-          "btu": "12000_BTU",
-          "modele": "Inverter R32 A++ WiFi",
-          "ancien_prix": 6599,
-          "prix_promo": 4999
-        },
-        {
-          "btu": "18000_BTU",
-          "modele": "Inverter R32 A++ WiFi",
-          "ancien_prix": 9199,
-          "prix_promo": 6499
-        },
-        {
-          "btu": "24000_BTU",
-          "modele": "Inverter R32 A++ WiFi",
-          "ancien_prix": 11999,
-          "prix_promo": 8499
-        }
-      ],
-      "ciat": [
-        {
-          "btu": "18000_BTU",
-          "modele": "Mural Inverter R32 (Installation incluse)",
-          "prix_promo": 5999
-        },
-        {
-          "btu": "24000_BTU",
-          "modele": "Mural Inverter R32 (Installation incluse)",
-          "prix_promo": 7299
-        }
-      ],
-      "daikool": [
-        {
-          "btu": "9000_BTU",
-          "modele": "Inverter",
-          "prix_promo": 3300
-        },
-        {
-          "btu": "12000_BTU",
-          "modele": "Inverter",
-          "prix_promo": 4000
-        }
-      ],
-      "tcl": [
-        {
-          "btu": "9000_BTU",
-          "modele": "Gris ON/OFF",
-          "prix_promo": 3200
-        },
-        {
-          "btu": "9000_BTU",
-          "modele": "Blanc Inverter",
-          "prix_promo": 3500
-        },
-        {
-          "btu": "9000_BTU",
-          "modele": "Noir Inverter",
-          "prix_promo": 3700
-        },
-        {
-          "btu": "12000_BTU",
-          "modele": "Noir Inverter",
-          "prix_promo": 4000
-        }
-      ]
-    }
+    "out_of_stock_policy": "Proposer une commande spéciale sous 24 à 48 heures après accord du client.",
+    "promotions_completes": [
+      {
+        "brand": "Daikool",
+        "btu": "9000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 3300,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Daikool",
+        "btu": "12000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 4000,
+        "installation_incluse": false
+      },
+      {
+        "brand": "CIAT",
+        "btu": "9000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 3800,
+        "installation_incluse": false
+      },
+      {
+        "brand": "CIAT",
+        "btu": "12000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 4300,
+        "installation_incluse": false
+      },
+      {
+        "brand": "CIAT",
+        "btu": "18000_BTU",
+        "modele": "Inverter R32",
+        "prix_promo": 5999,
+        "installation_incluse": true
+      },
+      {
+        "brand": "CIAT",
+        "btu": "24000_BTU",
+        "modele": "Inverter R32",
+        "prix_promo": 7299,
+        "installation_incluse": true
+      },
+      {
+        "brand": "TCL",
+        "btu": "9000_BTU",
+        "modele": "Gris ON/OFF",
+        "prix_promo": 3200,
+        "installation_incluse": false
+      },
+      {
+        "brand": "TCL",
+        "btu": "9000_BTU",
+        "modele": "Blanc Inverter",
+        "prix_promo": 3500,
+        "installation_incluse": false
+      },
+      {
+        "brand": "TCL",
+        "btu": "9000_BTU",
+        "modele": "Noir Inverter",
+        "prix_promo": 3700,
+        "installation_incluse": false
+      },
+      {
+        "brand": "TCL",
+        "btu": "12000_BTU",
+        "modele": "Noir Inverter",
+        "prix_promo": 4000,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "9000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 5999,
+        "prix_promo": 4399,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "12000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 6599,
+        "prix_promo": 4999,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "18000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 9199,
+        "prix_promo": 6499,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "24000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 11999,
+        "prix_promo": 8499,
+        "installation_incluse": false
+      }
+    ]
   },
   "repair_and_maintenance": {
-    "repair_policy_brands": "Nous réparons TOUTES LES MARQUES sans exception (Samsung, Daikin, etc.). Ne jamais dire non pour une réparation.",
+    "repair_policy_brands": "Nous réparons toutes les marques de climatiseurs.",
     "tarifs_services": {
-      "installation_complete": "À partir de 499 DH",
-      "reparation_rapide": "Dès 199 DH",
-      "entretien_complet": "À partir de 299 DH",
-      "diagnostic": "200 DH (déduit de la réparation)"
+      "installation": 499,
+      "entretien": 299,
+      "depannage": 199,
+      "entretien_promo": 399
     },
     "services_and_accessories_available": [
       "Télécommandes",
@@ -109,16 +139,5 @@
       "Supports",
       "Recharge Gaz R410A / R32"
     ]
-  },
-  "prices": {
-    "diagnostic": {
-      "amount": 200
-    },
-    "installation_seule": {
-      "starts_at": 499
-    },
-    "entretien_preventif": {
-      "starts_at": 299
-    }
   }
 }

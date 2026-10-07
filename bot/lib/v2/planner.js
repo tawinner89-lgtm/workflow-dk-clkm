@@ -1,7 +1,7 @@
 "use strict";
 const { FLOWS } = require('./flows');
 const { normalizeIntent } = require('./intent');
-const { getOffer } = require('./templates');
+const { getOffer, getOffers } = require('./templates');
 
 function planner(state, interp) {
     if (interp.urgency) return { type: 'handoff', reason: 'urgency', slots: [] };
@@ -10,8 +10,11 @@ function planner(state, interp) {
     if (interp.intent_change) state.intent = normalizeIntent(interp.intent_change);
     if (interp.question_asked) {
         if (state.intent === 'purchase' && ['price', 'availability'].includes(interp.question_asked)) {
-            if (state.slots.brand && state.slots.btu && state.flags?.stock_check?.available && !getOffer(state.slots.brand, state.slots.btu)) {
-                return { type: 'handoff', reason: 'price_not_configured', slots: [] };
+            if (state.slots.brand && state.slots.btu && (!state.flags?.stock_check || state.flags.stock_check.status === 'error')) {
+                return { type: 'handoff', reason: 'inventory_check_failed', slots: [] };
+            }
+            if (state.slots.brand && state.slots.btu && getOffer(state.slots.brand, state.slots.btu)) {
+                return { type: 'answer_question', reason: 'purchase_price_booking', slots: [interp.question_asked] };
             }
             return { type: 'answer_question', reason: 'purchase_product_question', slots: [interp.question_asked] };
         }
@@ -43,10 +46,17 @@ function planner(state, interp) {
 
     const flow = FLOWS[intent];
 
+    if (intent === 'purchase' && interp.is_lost && (!state.slots.brand || !state.slots.btu)) {
+        return { type: 'ask', reason: 'recommendation_group', slots: ['recommendation_group'] };
+    }
+
     if (intent === 'purchase' && state.slots.brand && state.slots.btu) {
         const stockCheck = state.flags?.stock_check;
         if (!stockCheck || stockCheck.status === 'error') return { type: 'handoff', reason: 'inventory_check_failed', slots: [] };
-        if (stockCheck.available === false) return { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
+        if (stockCheck.available === false && !stockCheck.can_preorder) return { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
+        if (getOffers(state.slots.brand, state.slots.btu).length > 1 && !state.slots.model_variant) {
+            return { type: 'ask', reason: 'choose_model_variant', slots: ['model_variant'] };
+        }
     }
     const missingRequired = flow.required.filter(s => !state.slots[s]);
     

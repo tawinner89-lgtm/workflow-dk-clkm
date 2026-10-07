@@ -27,6 +27,17 @@ function deterministicSlots(message, state) {
     } else if (btuMatch) {
         slots.btu = btuMatch[1].replace(/\D/g, '') + '_BTU';
     }
+    const variantBrand = slots.brand || state.slots?.brand;
+    const variantBtu = slots.btu || state.slots?.btu;
+    if (variantBrand && variantBtu) {
+        const matchingOffers = business.sales_catalog.promotions_completes.filter(offer => offer.brand.toLowerCase() === variantBrand.toLowerCase() && offer.btu === variantBtu);
+        const explicitVariant = matchingOffers.find(offer => {
+            const variant = offer.modele.toLowerCase();
+            const markers = ['gris', 'blanc', 'noir', 'on/off', 'r32', 'wifi'];
+            return markers.some(marker => variant.includes(marker) && new RegExp(`\\b${marker.replace('/', '\\\\/')}\\b`, 'i').test(message));
+        });
+        if (explicitVariant) slots.model_variant = explicitVariant.modele;
+    }
     const dateMatch = message.match(/\b(?:\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{4}-\d{2}-\d{2}|demain|tomorrow|gheda|ghdda|ghedwa|aujourd'hui|aujourdhui|lyoum|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|tnin|tlat|larb|khemis|jemaa|sebt|ahad)\b|بعد غد|غداً|غدا|غدًا|اليوم/i);
     if (dateMatch) slots.day = resolveDate(dateMatch[0]);
     const timeMatch = message.match(/\b(?:\d{1,2}\s*(?::|h)\s*\d{2}|\d{1,2}\s*h|l3chiya|3chiya|sbah|sabah|morning|apres-midi|matin)\b|الصباح|المساء/i);
@@ -42,6 +53,21 @@ function deterministicSlots(message, state) {
     return slots;
 }
 
+function detectQuestionAsked(message) {
+    const clean = String(message || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/(?:bch7al|ch7al|taman|prix|price|combien|combien coute|quel est le prix|a combien|how much)/i.test(clean)) return 'price';
+    if (/(?:disponibil|en stock|stock|kayn|kayna|mawjoud|available|availability)/i.test(clean)) return 'availability';
+    return null;
+}
+
+function detectLost(message) {
+    return /(?:ma\s*3reftch|ma3reftch|talef|ach\s+(?:tnse7ni|nakhod|nakhed)|a7sen\s+haja|conseil|meilleur|je\s+ne\s+sais\s+pas|je\s+h[eé]site|je\s+ne\s+connais\s+pas)/iu.test(String(message || ''));
+}
+
+function isCorrection(message) {
+    return /^(?:\s*(?:la|non|no)\s+)|(?:^|\s)(?:machi|not\s+that|en\s+fait|plut[oô]t|ghalat|erreur|pardon)(?:\s|$)/iu.test(String(message || ''));
+}
+
 async function interpret(llmFn, state, customerMessage) {
     if (customerMessage.includes("[SYSTEM:") || customerMessage.includes("[Image/Vid") || customerMessage.includes("[Message Audio")) {
         return { is_media: true, slot_updates: {}, _tokens: 0 };
@@ -52,6 +78,15 @@ async function interpret(llmFn, state, customerMessage) {
         stage: state.stage,
         last_bot_question_slot: state.last_bot_question_slot
     };
+    const systemPrompt = `You are DK Clim NLU. Extract from ANY Moroccan message (Darija Latin, French, Arabic) in ANY order:
+{"intent":"purchase|panne|entretien|installation|devis|price|availability|null","intent_change":"purchase|repair|maintenance|installation|price|availability|null","slot_updates":{"brand":null,"btu":null,"budget":null,"name":null,"address":null,"phone":null,"room_area":null,"symptom":null,"day":null,"time_window_or_hour":null},"question_asked":"price|availability|company|null","detected_language":"ar|fr","is_correction":false,"is_lost":false}
+Rules:
+- Extract every slot explicitly present, regardless of order. Example: bghit Carrier 12000 Casa 06... => brand Carrier, btu 12000_BTU, address Casa, phone.
+- If is_correction, overwrite the previous slot with the corrected value; preserve unrelated known slots.
+- If question_asked=price and brand+btu are known, answer from the configured price allowlist; never ask budget.
+- If is_lost and brand or BTU is unknown, ask for room_area and budget for a recommendation.
+- Never ask again for a slot already present in state.slots, except when explicitly corrected.
+- Return only valid JSON. Do not invent any slot values.`;
     const prompt = `
 You are the NLU Engine for a Moroccan HVAC WhatsApp bot.
 Current state: ${JSON.stringify(slimState)}
@@ -59,7 +94,7 @@ Customer message: ${JSON.stringify(customerMessage)}
 
 Task: Output a JSON interpreting the customer's intent, slots, and context.
 RULES:
-1. slot_updates: Map of explicit new or updated slots (e.g. name, address, phone, symptom, ac_type, units, install_mode, day, time_window_or_hour, brand, btu, budget, room_area). Brands: ${business.sales_catalog.brands_in_stock.join(', ')}. BTU choices: ${business.sales_catalog.btu_options.join(', ')}. For room area, use 12m2=9000_BTU, 18m2=12000_BTU, 25m2=18000_BTU and larger=24000_BTU. Extract budget amounts. Map service requests using customer meaning: repair, maintenance, installation, purchase.
+1. slot_updates: Map of explicit new or updated slots (e.g. name, address, phone, symptom, ac_type, units, install_mode, day, time_window_or_hour, brand, btu, model_variant, budget, room_area). Brands: ${business.sales_catalog.brands_in_stock.join(', ')}. BTU choices: ${business.sales_catalog.btu_options.join(', ')}. For room area, use 12m2=9000_BTU, 18m2=12000_BTU, 25m2=18000_BTU and larger=24000_BTU. Extract budget amounts. Map service requests using customer meaning: repair, maintenance, installation, purchase.
 2. answers_to_slot: If the user answers a short text like "Gainable", "Split", or "Casa", check state.last_bot_question_slot. Attach it here if it fits, else guess the right slot. For appointment day, output a calendar date and preserve an explicit time such as 14:30 or 14h30.
 3. question_asked: If the customer asks a question, set it to a single keyword representing the topic (e.g. "price", "brand", "availability", "zones"). Do NOT use "price" unless the user explicitly asks about cost or price (Note: "chkadirou" means "Do you do", not "How much", so it is an availability question, not price).
 4. acceptance: If they say "ok/oui/d'accord" to a bot proposal, set { price_accepted: true } or { time_accepted: true } depending on context.
@@ -94,17 +129,24 @@ Return EXACTLY this JSON structure:
 
     const localSlots = deterministicSlots(customerMessage, state);
     const localIntent = normalizeIntent(customerMessage);
+    const localLost = detectLost(customerMessage);
+    const localCorrection = isCorrection(customerMessage);
+    if (localCorrection && state.intent === 'purchase' && !localSlots.btu) {
+        const correctedBtu = customerMessage.match(/\b(9000|12000|18000|24000)(?:\s*_?\s*btu)?\b/i);
+        if (correctedBtu) localSlots.btu = `${correctedBtu[1]}_BTU`;
+    }
     const isBareAffirmation = /^(?:oui|yes|ok|okay|d'accord|wakha|mezian|yallah|sir)[!.\s]*$/iu.test(customerMessage.trim());
     const simpleMessage = customerMessage.trim().length <= 64 && (
         /^(salam|slm|marhaba|bonjour|salut|hello|hi)[!.\s]*$/i.test(customerMessage) ||
-        Boolean(localIntent && localIntent !== 'price') || Object.keys(localSlots).length > 0 ||
+        (/^(?:salam\s+)?(?:bghit\s+(?:nchri\s+)?clim|bghit\s+nchri)$/i.test(customerMessage.trim())) ||
+        localLost ||
         (state.stage === 'RECAP' && isBareAffirmation) ||
-        (state.last_bot_question_slot && !/[?؟]/.test(customerMessage))
+        (state.last_bot_question_slot && !/[?؟]/.test(customerMessage) && !localCorrection && Object.keys(localSlots).length === 0)
     );
     let res = { text: '{}', tokens: 0 };
     if (!simpleMessage) {
         try {
-            res = await llmFn(prompt, { json: true, temperature: 0.2 });
+            res = await llmFn(prompt, { json: true, temperature: 0, system: systemPrompt });
         } catch (error) {
             console.error('[NLU PROVIDER ERROR]', error.message);
         }
@@ -136,14 +178,31 @@ Return EXACTLY this JSON structure:
     if (!parsed.slot_updates) parsed.slot_updates = {};
 
     parsed.slot_updates = { ...parsed.slot_updates, ...localSlots };
-    if (!parsed.intent_change) parsed.intent_change = localIntent;
+    parsed.is_lost = Boolean(parsed.is_lost || localLost);
+    parsed.is_correction = Boolean(parsed.is_correction || localCorrection);
+    if (localCorrection && state.slots.brand) {
+        const rejectedBrand = business.sales_catalog.brands_in_stock.find(brand => new RegExp(`\\b${brand.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i').test(customerMessage));
+        if (rejectedBrand && rejectedBrand.toLowerCase() === String(state.slots.brand).toLowerCase() && (!localSlots.brand || localSlots.brand.toLowerCase() === rejectedBrand.toLowerCase())) {
+            delete parsed.slot_updates.brand;
+            parsed.clear_slots = [...new Set([...(parsed.clear_slots || []), 'brand'])];
+        }
+    }
+    if (!parsed.intent_change) parsed.intent_change = localIntent === 'price' && state.intent ? null : (localIntent || (localLost && !state.intent ? 'purchase' : null));
     parsed.detected_language = detectLanguage(customerMessage) || parsed.detected_language || state.language || 'ar';
     if (/\b(?:j\s*['’]?\s*aimerais\s+en\s+savoir\s+plus\s+sur\s+votre\s+entreprise|en savoir plus sur (?:votre )?entreprise|parlez-moi de votre entreprise|about your company|about dk clim)\b/iu.test(customerMessage)) parsed.question_asked = 'company';
+    if (!parsed.question_asked) parsed.question_asked = detectQuestionAsked(customerMessage);
 
     if (parsed.slot_updates.brand) {
         const match = business.sales_catalog.brands_in_stock.find(brand => brand.toLowerCase() === String(parsed.slot_updates.brand).toLowerCase());
         if (match) parsed.slot_updates.brand = match;
         else delete parsed.slot_updates.brand;
+    }
+    if (parsed.slot_updates.model_variant) {
+        const brand = parsed.slot_updates.brand || state.slots.brand;
+        const btu = parsed.slot_updates.btu || state.slots.btu;
+        const validVariant = business.sales_catalog.promotions_completes.find(offer => offer.brand.toLowerCase() === String(brand || '').toLowerCase() && offer.btu.toUpperCase() === String(btu || '').toUpperCase() && offer.modele.toLowerCase() === String(parsed.slot_updates.model_variant).toLowerCase());
+        if (validVariant) parsed.slot_updates.model_variant = validVariant.modele;
+        else delete parsed.slot_updates.model_variant;
     }
     if (parsed.slot_updates.btu) {
         const normalizedBtu = String(parsed.slot_updates.btu).replace(/\D/g, '') + '_BTU';
@@ -165,7 +224,8 @@ Return EXACTLY this JSON structure:
             if (phone) parsed.slot_updates.phone = phone;
         }
     }
-    if (localIntent === 'price' && (localSlots.brand || localSlots.btu)) parsed.intent_change = 'purchase';
+    if (localIntent === 'price' && state.intent === 'purchase') parsed.intent_change = null;
+    else if (localIntent === 'price' && (localSlots.brand || localSlots.btu)) parsed.intent_change = 'purchase';
 
     if (!parsed.slot_updates.ac_type) {
         const lowerMsg = customerMessage.toLowerCase();
@@ -211,4 +271,4 @@ Return EXACTLY this JSON structure:
     return parsed;
 }
 
-module.exports = { interpret, detectLanguage, deterministicSlots };
+module.exports = { interpret, detectLanguage, deterministicSlots, detectQuestionAsked, detectLost, isCorrection };

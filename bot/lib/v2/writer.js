@@ -1,5 +1,10 @@
 "use strict";
 const { render, localeFor, TEMPLATES } = require('./templates');
+const business = require('../../../shared/business.json');
+const allowedPrices = [...new Set([
+    ...business.sales_catalog.promotions_completes.flatMap(offer => [offer.prix_normal, offer.prix_promo]),
+    ...Object.values(business.repair_and_maintenance.tarifs_services),
+].filter(Number.isFinite))].sort((a, b) => a - b);
 async function writeReply(llmFn, state, nextAction, recentHistory = [], rulesText = '') {
     if (nextAction.type === 'silent') return { text: "", tokens: 0, deterministic: true };
     const isRetry = nextAction.reason && nextAction.reason.includes('Retry:');
@@ -35,7 +40,7 @@ async function writeReply(llmFn, state, nextAction, recentHistory = [], rulesTex
 You are the DK Clim WhatsApp sales and service assistant.
 LANGUAGE: ${languageInstruction}
 Style: chaleureux, concis, max 4 phrases.
-ANTI-HALLUCINATION: N'invente jamais prix/services/marques. Use configured catalog and price allowlist only.
+ANTI-HALLUCINATION: N'invente jamais prix/services/marques. Use configured catalog and price allowlist only. Allowed TTC amounts (DH): ${allowedPrices.join(', ')}. If a price is missing from this list, do not quote it; hand off to the team.
 REGLES METIER:
 ${rulesText}
 CONTEXTE: Intent ${state.intent}, Slots ${JSON.stringify(state.slots)}
