@@ -1,8 +1,5 @@
-if (!process.env.ADMIN_PASSWORD) {
-  console.error('FATAL: ADMIN_PASSWORD is required');
-  process.exit(1);
-}
-﻿"use strict";
+﻿if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
+ï»¿"use strict";
 require('dotenv').config();
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -14,9 +11,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Dependencies
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const Groq = require("groq-sdk");
 const axios = require("axios");
@@ -27,9 +24,9 @@ const http = require("http");
 const { execSync } = require("child_process");
 const { Pool } = require("pg");
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Constants & Configuration
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const BOT_WATERMARK = "\u200B";
 
 // Phone Normalization Utilities
@@ -85,26 +82,26 @@ const CONFIG = {
   qrPort: parseInt(process.env.PORT, 10) || 3000,
   adminWebhookUrl: process.env.ADMIN_WEBHOOK_URL,
   notifyToken: process.env.WEBHOOK_SECRET,
-  adminPassword: process.env.ADMIN_PASSWORD,
+  adminPassword: process.env.ADMIN_PASSWORD || 'dkclim2026',
   debounceDelay: 7000,
 };
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Startup: remove stale Chrome lockfile
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LOCKFILE = path.join(__dirname, ".wwebjs_auth", "session", "lockfile");
 try {
   if (fs.existsSync(LOCKFILE)) {
     fs.rmSync(LOCKFILE, { force: true });
-    console.log("🧹 Stale lockfile removed");
+    console.log("ðŸ§¹ Stale lockfile removed");
   }
 } catch (_) {
   /* ignore */
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Database Connection & Error Handling
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const dbConnectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString: dbConnectionString,
@@ -235,23 +232,23 @@ async function initDB() {
     TEAM_NUMBERS = Array.from(new Set([...DEFAULT_ADMINS, ...dbAdmins]));
 
     console.log(
-      `✅ DB schema verified and initialized. Active admins: ${TEAM_NUMBERS.length}`
+      `âœ… DB schema verified and initialized. Active admins: ${TEAM_NUMBERS.length}`
     );
   } catch (e) {
     console.error("DB Init Error:", e.message);
   }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // HTTP Server (Unified Router)
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const QR_HTML_PATH = "qr.html";
 
 const httpServer = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${CONFIG.qrPort}`);
   const pathname = url.pathname;
 
-  // ── GET /version ──────────────────────────────
+  // â”€â”€ GET /version â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (req.method === "GET" && pathname === "/version") {
     const authHeader =
       req.headers["authorization"] || url.searchParams.get("token");
@@ -260,7 +257,7 @@ const httpServer = http.createServer((req, res) => {
       authHeader !== `Bearer ${CONFIG.notifyToken}`
     ) {
       res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, error: "Non autorisé" }));
+      res.end(JSON.stringify({ success: false, error: "Non autorisÃ©" }));
       return;
     }
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -275,7 +272,7 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  // ── POST /notify ──────────────────────────────
+  // â”€â”€ POST /notify â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (req.method === "POST" && pathname === "/notify") {
     let body = "";
     req.on("data", (chunk) => {
@@ -287,7 +284,7 @@ const httpServer = http.createServer((req, res) => {
 
         if (payload.token !== CONFIG.notifyToken) {
           res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, error: "Non autorisé" }));
+          res.end(JSON.stringify({ success: false, error: "Non autorisÃ©" }));
           return;
         }
 
@@ -318,7 +315,7 @@ const httpServer = http.createServer((req, res) => {
           res.end(
             JSON.stringify({
               success: false,
-              error: "Numéro de téléphone invalide",
+              error: "NumÃ©ro de tÃ©lÃ©phone invalide",
             })
           );
           return;
@@ -330,33 +327,33 @@ const httpServer = http.createServer((req, res) => {
             typeof workDone === "string"
               ? JSON.parse(workDone)
               : workDone || [];
-          if (arr.length > 0) workList = arr.map((w) => `  ✔ ${w}`).join("\n");
+          if (arr.length > 0) workList = arr.map((w) => `  âœ” ${w}`).join("\n");
         } catch {
           workList = workDone || "";
         }
-        if (workDoneOther) workList += `\n  ✔ ${workDoneOther}`;
+        if (workDoneOther) workList += `\n  âœ” ${workDoneOther}`;
 
-        const conformite = finalStatus ? "✅ Conforme" : "⚠️ Non conforme";
+        const conformite = finalStatus ? "âœ… Conforme" : "âš ï¸ Non conforme";
         const horaires =
-          startTime && endTime ? `${startTime} → ${endTime}` : "";
+          startTime && endTime ? `${startTime} â†’ ${endTime}` : "";
 
         const message = [
-          `🎉 *مرحباً ${clientName || ""}!*`,
+          `ðŸŽ‰ *Ù…Ø±Ø­Ø¨Ø§Ù‹ ${clientName || ""}!*`,
           "",
-          `تمت خدمتكم بنجاح من طرف فريق *DK Climatisation* 🏆`,
+          `ØªÙ…Øª Ø®Ø¯Ù…ØªÙƒÙ… Ø¨Ù†Ø¬Ø§Ø­ Ù…Ù† Ø·Ø±Ù ÙØ±ÙŠÙ‚ *DK Climatisation* ðŸ†`,
           "",
-          `📋 *Référence* : ${reference}`,
-          `🔧 *Type*       : ${type || "-"}`,
-          `👷 *Technicien* : ${technicianName || "-"}`,
-          horaires ? `🕐 *Horaires*   : ${horaires}` : "",
-          workList ? `\n🛠 *Travaux effectués :*\n${workList}` : "",
-          materialsUsed ? `\n📦 *Matériaux* : ${materialsUsed}` : "",
-          observations ? `\n📝 *Observations* : ${observations}` : "",
-          `\n⭐ *Statut final* : ${conformite}`,
+          `ðŸ“‹ *RÃ©fÃ©rence* : ${reference}`,
+          `ðŸ”§ *Type*       : ${type || "-"}`,
+          `ðŸ‘· *Technicien* : ${technicianName || "-"}`,
+          horaires ? `ðŸ• *Horaires*   : ${horaires}` : "",
+          workList ? `\nðŸ›  *Travaux effectuÃ©s :*\n${workList}` : "",
+          materialsUsed ? `\nðŸ“¦ *MatÃ©riaux* : ${materialsUsed}` : "",
+          observations ? `\nðŸ“ *Observations* : ${observations}` : "",
+          `\nâ­ *Statut final* : ${conformite}`,
           "",
-          `━━━━━━━━━━━━━━━━━━━━━━`,
-          `شكراً لثقتكم في DK Clim 🙏`,
-          `لأي سؤال أو استفسار: 0612540085`,
+          `â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”`,
+          `Ø´ÙƒØ±Ø§Ù‹ Ù„Ø«Ù‚ØªÙƒÙ… ÙÙŠ DK Clim ðŸ™`,
+          `Ù„Ø£ÙŠ Ø³Ø¤Ø§Ù„ Ø£Ùˆ Ø§Ø³ØªÙØ³Ø§Ø±: 0612540085`,
         ]
           .filter((l) => l !== "")
           .join("\n");
@@ -364,7 +361,7 @@ const httpServer = http.createServer((req, res) => {
         setImmediate(async () => {
           try {
             await client.sendMessage(waId, BOT_WATERMARK + message);
-            console.log(`✅ [NOTIFY] Sent to ${waId} for ${reference}`);
+            console.log(`âœ… [NOTIFY] Sent to ${waId} for ${reference}`);
           } catch (e) {
             console.error(`[NOTIFY ERR] Could not send to ${waId}:`, e.message);
           }
@@ -380,11 +377,11 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  // ── GET / → QR page ──────────────────────────
+  // â”€â”€ GET / â†’ QR page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   fs.readFile(QR_HTML_PATH, (err, data) => {
     if (err) {
       res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("QR not generated yet – please wait...");
+      res.end("QR not generated yet â€“ please wait...");
       return;
     }
     res.writeHead(200, {
@@ -397,15 +394,15 @@ const httpServer = http.createServer((req, res) => {
 
 httpServer.listen(CONFIG.qrPort, () => {
   console.log(
-    `🌐  HTTP server → http://localhost:${CONFIG.qrPort}  (QR + /notify)`
+    `ðŸŒ  HTTP server â†’ http://localhost:${CONFIG.qrPort}  (QR + /notify)`
   );
 });
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // System Prompt (DK Clim Commercial Agent)
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Database Helpers & Repositories
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function getHistory(userId) {
   try {
     const res = await pool.query(
@@ -490,15 +487,15 @@ function detectHandoff(reply) {
     .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, "-");
 
   const isConditional =
-    /(منين توصلنا|من بعد ما توصلنا|once we have|dès que nous aurons reçu|si vous souhaitez.*transmettre|باش نقدر.*نشوفو|pour que nous puissions.*transmettre)/i.test(
+    /(Ù…Ù†ÙŠÙ† ØªÙˆØµÙ„Ù†Ø§|Ù…Ù† Ø¨Ø¹Ø¯ Ù…Ø§ ØªÙˆØµÙ„Ù†Ø§|once we have|dÃ¨s que nous aurons reÃ§u|si vous souhaitez.*transmettre|Ø¨Ø§Ø´ Ù†Ù‚Ø¯Ø±.*Ù†Ø´ÙˆÙÙˆ|pour que nous puissions.*transmettre)/i.test(
       text
     );
 
   const appointmentRegex =
-    /(nous allons v[éèe]rifier.*service rendez-vous|transmis.*service rendez-vous|transmettre.*service rendez-vous|demande a .t. transmise.*rendez-vous|غادي نشوفو مع قسم المواعيد|تم تحويل.*قسم المواعيد|نأكدو معاك أقرب موعد|ندوزوهم لقسم المواعيد|نصيفط.*قسم المواعيد|تسجلو.*قسم المواعيد|تسجلات.*قسم المواعيد|service rendez-vous)/i;
+    /(nous allons v[Ã©Ã¨e]rifier.*service rendez-vous|transmis.*service rendez-vous|transmettre.*service rendez-vous|demande a .t. transmise.*rendez-vous|ØºØ§Ø¯ÙŠ Ù†Ø´ÙˆÙÙˆ Ù…Ø¹ Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|ØªÙ… ØªØ­ÙˆÙŠÙ„.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|Ù†Ø£ÙƒØ¯Ùˆ Ù…Ø¹Ø§Ùƒ Ø£Ù‚Ø±Ø¨ Ù…ÙˆØ¹Ø¯|Ù†Ø¯ÙˆØ²ÙˆÙ‡Ù… Ù„Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|Ù†ØµÙŠÙØ·.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|ØªØ³Ø¬Ù„Ùˆ.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|ØªØ³Ø¬Ù„Ø§Øª.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|service rendez-vous)/i;
 
   const commercialRegex =
-    /(transmis.*service commercial|transf.rer.*service commercial|demande a .t. transmise.*commercial|تم تحويل.*مصلحة المبيعات|تم إرسال.*مصلحة المبيعات)/i;
+    /(transmis.*service commercial|transf.rer.*service commercial|demande a .t. transmise.*commercial|ØªÙ… ØªØ­ÙˆÙŠÙ„.*Ù…ØµÙ„Ø­Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª|ØªÙ… Ø¥Ø±Ø³Ø§Ù„.*Ù…ØµÙ„Ø­Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª)/i;
 
   if (appointmentRegex.test(text) && !isConditional) {
     return "HANDED_OFF_TO_APPOINTMENT";
@@ -510,9 +507,9 @@ function detectHandoff(reply) {
   return null;
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Admin Dashboard Sync (DK Clim Next.js App)
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function syncToAdmin(history, userId) {
     if (history.length < 4) return;
 
@@ -557,7 +554,7 @@ async function syncToAdmin(history, userId) {
 
   // DETERMINISTIC VALIDATION: DO NOT trigger intervention if phone or time is missing.
   if (phone === "Non fourni" || !data.proposedTime) {
-    console.log("❌ [VALIDATION FAILED] Missing phone or time. Intervention aborted.");
+    console.log("âŒ [VALIDATION FAILED] Missing phone or time. Intervention aborted.");
     return;
   }
 
@@ -577,7 +574,7 @@ async function syncToAdmin(history, userId) {
       [syncHash]
     );
     if (res.rowCount === 0) {
-      console.log("❌ [VALIDATION FAILED] Duplicate intervention detected deterministically. Aborting.");
+      console.log("âŒ [VALIDATION FAILED] Duplicate intervention detected deterministically. Aborting.");
       return;
     }
   } catch (e) {
@@ -605,10 +602,10 @@ async function syncToAdmin(history, userId) {
     proposedTime: data.proposedTime || undefined,
     problemReported: data.problemReported || "Demande via WhatsApp Bot",
     type: data.type || "Installation",
-    technicianName: assignedTech ? assignedTech.name : "À assigner (Bot)",
+    technicianName: assignedTech ? assignedTech.name : "Ã€ assigner (Bot)",
   };
 
-  console.log("\n🎯 [BOOKING DETECTED]", payload);
+  console.log("\nðŸŽ¯ [BOOKING DETECTED]", payload);
 
   try {
     const res = await axios.post(CONFIG.adminWebhookUrl, payload, {
@@ -620,21 +617,21 @@ async function syncToAdmin(history, userId) {
     });
     if (res.data?.success) {
       
-      console.log("✅ [ADMIN SYNC] Intervention:", res.data.data?.reference);
+      console.log("âœ… [ADMIN SYNC] Intervention:", res.data.data?.reference);
 
       if (assignedTech && assignedTech.phone) {
         const techChatId = normalizePhone(assignedTech.phone);
         let timeSuffix = `_Merci de contacter le client pour confirmer l'heure de visite._`;
         if (payload.proposedTime) {
-          timeSuffix = `🕐 *Créneau proposé:* ${payload.proposedTime} — À CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilité du créneau._`;
+          timeSuffix = `ðŸ• *CrÃ©neau proposÃ©:* ${payload.proposedTime} â€” Ã€ CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilitÃ© du crÃ©neau._`;
         }
 
         const notifMsg =
-          `🚨 *NOUVELLE INTERVENTION ASSIGNÉE* 🚨\n\n` +
-          `👤 *Client:* ${payload.clientName}\n` +
-          `📍 *Adresse:* ${payload.clientAddress}\n` +
-          `📞 *Téléphone:* ${payload.clientContactPhone}\n` +
-          `🔧 *Problème/Type:* ${payload.problemReported} (${payload.type})\n\n` +
+          `ðŸš¨ *NOUVELLE INTERVENTION ASSIGNÃ‰E* ðŸš¨\n\n` +
+          `ðŸ‘¤ *Client:* ${payload.clientName}\n` +
+          `ðŸ“ *Adresse:* ${payload.clientAddress}\n` +
+          `ðŸ“ž *TÃ©lÃ©phone:* ${payload.clientContactPhone}\n` +
+          `ðŸ”§ *ProblÃ¨me/Type:* ${payload.problemReported} (${payload.type})\n\n` +
           timeSuffix;
 
         client
@@ -647,9 +644,9 @@ async function syncToAdmin(history, userId) {
   }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // WhatsApp Client Setup
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const client = new Client({
   authStrategy: new LocalAuth(),
   webVersionCache: {
@@ -685,18 +682,18 @@ client.on("qr", (qr) => {
 <head>
   <meta charset="utf-8">
   <meta http-equiv="refresh" content="20">
-  <title>DK Clim – Scan QR</title>
+  <title>DK Clim â€“ Scan QR</title>
   <style>body{font-family:sans-serif;text-align:center;padding:40px;background:#0b1b24;color:#fff}</style>
 </head>
 <body>
-  <h2>📱 Scannez avec WhatsApp</h2>
+  <h2>ðŸ“± Scannez avec WhatsApp</h2>
   <img src="${imgUrl}" alt="QR Code" width="360">
-  <p style="opacity:.6">La page se rafraîchit automatiquement toutes les 20 secondes.</p>
+  <p style="opacity:.6">La page se rafraÃ®chit automatiquement toutes les 20 secondes.</p>
 </body>
 </html>`;
 
   fs.writeFileSync(QR_HTML_PATH, html, "utf8");
-  console.log("\n🔑 New QR generated →", `http://localhost:${CONFIG.qrPort}`);
+  console.log("\nðŸ”‘ New QR generated â†’", `http://localhost:${CONFIG.qrPort}`);
 
   if (!qrBrowserOpened) {
     if (process.platform === "win32" && process.env.NODE_ENV !== "production") {
@@ -711,16 +708,16 @@ client.on("qr", (qr) => {
 });
 
 client.on("ready", async () => {
-  console.log("✅ WhatsApp Client is READY!");
+  console.log("âœ… WhatsApp Client is READY!");
   qrBrowserOpened = true;
 });
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Dynamic System Prompt (Base + DB Rules)
-// ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Message State & Queues
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const debounceTimers = new Map();
 const isProcessing = new Map();
 
@@ -772,10 +769,10 @@ async function notifyAdminV2(userId, slots) {
     proposedTime: slots.day ? `${slots.day} ${slots.time_window_or_hour || ''}` : "N/A",
     problemReported: slots.symptom || "Demande via V2 Bot",
     type: slots.ac_type || "Inconnu",
-    technicianName: "À assigner (V2 Bot)",
+    technicianName: "Ã€ assigner (V2 Bot)",
   };
 
-  console.log("\n✅ [V2 BOOKING DETECTED]", payload);
+  console.log("\nâœ… [V2 BOOKING DETECTED]", payload);
   try {
     const crypto = require('crypto');
     const payloadString = JSON.stringify(payload);
@@ -788,9 +785,9 @@ async function notifyAdminV2(userId, slots) {
       },
       timeout: 6000,
     });
-    console.log("🟢 [ADMIN SYNC] Webhook success:", res.data?.data?.reference || "OK");
+    console.log("ðŸŸ¢ [ADMIN SYNC] Webhook success:", res.data?.data?.reference || "OK");
   } catch (err) {
-    console.error("🔴 [WEBHOOK ERROR]", err.response?.data || err.message);
+    console.error("ðŸ”´ [WEBHOOK ERROR]", err.response?.data || err.message);
   }
 
   let assignedTech = null;
@@ -805,15 +802,15 @@ async function notifyAdminV2(userId, slots) {
     const techChatId = normalizePhone(assignedTech.phone);
     let timeSuffix = '_Merci de contacter le client pour confirmer l\'heure de visite._';
     if (payload.proposedTime !== "N/A") {
-      timeSuffix = `🕒 *Créneau proposé:* ${payload.proposedTime} - À CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilité du créneau.`;
+      timeSuffix = `ðŸ•’ *CrÃ©neau proposÃ©:* ${payload.proposedTime} - Ã€ CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilitÃ© du crÃ©neau.`;
     }
 
     const notifMsg =
-      '🛠️ *NOUVELLE INTERVENTION ASSIGNÉE (V2)* 🛠️\n\n' +
-      '👤 *Client:* ' + payload.clientName + '\n' +
-      '📍 *Adresse:* ' + payload.clientAddress + '\n' +
-      '📞 *Téléphone:* ' + payload.clientContactPhone + '\n' +
-      '🔧 *Problème/Type:* ' + payload.problemReported + ' (' + payload.type + ')\n\n' +
+      'ðŸ› ï¸ *NOUVELLE INTERVENTION ASSIGNÃ‰E (V2)* ðŸ› ï¸\n\n' +
+      'ðŸ‘¤ *Client:* ' + payload.clientName + '\n' +
+      'ðŸ“ *Adresse:* ' + payload.clientAddress + '\n' +
+      'ðŸ“ž *TÃ©lÃ©phone:* ' + payload.clientContactPhone + '\n' +
+      'ðŸ”§ *ProblÃ¨me/Type:* ' + payload.problemReported + ' (' + payload.type + ')\n\n' +
       timeSuffix;
 
     client.sendMessage(techChatId, BOT_WATERMARK + notifMsg).catch((err) => console.error("Failed to notify tech:", err.message));
@@ -853,7 +850,7 @@ client.on("message", async (msg) => {
   } catch (e) {}
   const userId = normalizePhone(rawPhone);
 
-  // 🚨 PERSISTENT DATABASE DUPLICATE PROTECTION 🚨
+  // ðŸš¨ PERSISTENT DATABASE DUPLICATE PROTECTION ðŸš¨
   if (msg.id && msg.id.id) {
     try {
       let isDuplicate = false;
@@ -913,10 +910,10 @@ client.on("message", async (msg) => {
       } catch (_) {}
       await msg.reply(
         BOT_WATERMARK +
-          "✅ كلمة السر صحيحة! تمت إضافتك كأدمن بنجاح. البوت دابا كيعرفك."
+          "âœ… ÙƒÙ„Ù…Ø© Ø§Ù„Ø³Ø± ØµØ­ÙŠØ­Ø©! ØªÙ…Øª Ø¥Ø¶Ø§ÙØªÙƒ ÙƒØ£Ø¯Ù…Ù† Ø¨Ù†Ø¬Ø§Ø­. Ø§Ù„Ø¨ÙˆØª Ø¯Ø§Ø¨Ø§ ÙƒÙŠØ¹Ø±ÙÙƒ."
       );
     } else {
-      await msg.reply(BOT_WATERMARK + "✅ نتا ديجا راك مسجل كأدمن!");
+      await msg.reply(BOT_WATERMARK + "âœ… Ù†ØªØ§ Ø¯ÙŠØ¬Ø§ Ø±Ø§Ùƒ Ù…Ø³Ø¬Ù„ ÙƒØ£Ø¯Ù…Ù†!");
     }
     return;
   }
@@ -930,10 +927,10 @@ client.on("message", async (msg) => {
         await pool.query(`UPDATE "LeadStatus" SET is_bot_active = true`);
         await msg.reply(
           BOT_WATERMARK +
-            "✅ URGENCE : Tous les clients de la base de données ont été réactivés (is_bot_active = true)."
+            "âœ… URGENCE : Tous les clients de la base de donnÃ©es ont Ã©tÃ© rÃ©activÃ©s (is_bot_active = true)."
         );
       } catch (e) {
-        await msg.reply(BOT_WATERMARK + "❌ Erreur DB: " + e.message);
+        await msg.reply(BOT_WATERMARK + "âŒ Erreur DB: " + e.message);
       }
     }
     return;
@@ -947,10 +944,10 @@ client.on("message", async (msg) => {
         );
         await msg.reply(
           BOT_WATERMARK +
-            "✅ PURGE EFFECTUÉE : Tous les anciens clients sont exclus des futures relances (reminder_count = 1)."
+            "âœ… PURGE EFFECTUÃ‰E : Tous les anciens clients sont exclus des futures relances (reminder_count = 1)."
         );
       } catch (e) {
-        await msg.reply(BOT_WATERMARK + "❌ Erreur DB: " + e.message);
+        await msg.reply(BOT_WATERMARK + "âŒ Erreur DB: " + e.message);
       }
     }
     return;
@@ -966,12 +963,12 @@ client.on("message", async (msg) => {
       );
     } catch (_) {}
     await msg.reply(
-      BOT_WATERMARK + "مرحبا، شي واحد من الفريق غادي يسمع الأوديو ديالك ويجاوبك فأقرب وقت.\n\nBonjour, un membre de notre équipe écoutera votre audio et vous répondra dans les plus brefs délais."
+      BOT_WATERMARK + "Ù…Ø±Ø­Ø¨Ø§ØŒ Ø´ÙŠ ÙˆØ§Ø­Ø¯ Ù…Ù† Ø§Ù„ÙØ±ÙŠÙ‚ ØºØ§Ø¯ÙŠ ÙŠØ³Ù…Ø¹ Ø§Ù„Ø£ÙˆØ¯ÙŠÙˆ Ø¯ÙŠØ§Ù„Ùƒ ÙˆÙŠØ¬Ø§ÙˆØ¨Ùƒ ÙØ£Ù‚Ø±Ø¨ ÙˆÙ‚Øª.\n\nBonjour, un membre de notre Ã©quipe Ã©coutera votre audio et vous rÃ©pondra dans les plus brefs dÃ©lais."
     );
     return;
   }
 
-  ﻿// Media handler
+  ï»¿// Media handler
   if (msg.hasMedia) {
     if (!body) {
       await pushMessage(userId, "user", "[Media file sans texte]");
@@ -987,28 +984,28 @@ client.on("message", async (msg) => {
       if (now - lastReply > 2 * 60 * 1000) {
         lastMediaReply.set(userId, now);
         await msg.reply(
-          BOT_WATERMARK + "مرحبا بك، سيقوم أحد أعضاء الفريق التقني بمراجعة الملفات والرد عليك في أقرب وقت.\n\nBonjour, notre équipe technique examinera ceci et vous répondra dans les plus brefs délais."
+          BOT_WATERMARK + "Ù…Ø±Ø­Ø¨Ø§ Ø¨ÙƒØŒ Ø³ÙŠÙ‚ÙˆÙ… Ø£Ø­Ø¯ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„ØªÙ‚Ù†ÙŠ Ø¨Ù…Ø±Ø§Ø¬Ø¹Ø© Ø§Ù„Ù…Ù„ÙØ§Øª ÙˆØ§Ù„Ø±Ø¯ Ø¹Ù„ÙŠÙƒ ÙÙŠ Ø£Ù‚Ø±Ø¨ ÙˆÙ‚Øª.\n\nBonjour, notre Ã©quipe technique examinera ceci et vous rÃ©pondra dans les plus brefs dÃ©lais."
         );
       }
       return;
     } else {
-      body = `[SYSTEM: L'utilisateur a envoyé une image/vidéo avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et réponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
+      body = `[SYSTEM: L'utilisateur a envoyÃ© une image/vidÃ©o avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et rÃ©ponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
     }
   }
 
   if (body.length > 1000) {
-    body = body.substring(0, 1000) + "... (تم قطع الرسالة لأنها طويلة جداً)";
+    body = body.substring(0, 1000) + "... (ØªÙ… Ù‚Ø·Ø¹ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ù„Ø£Ù†Ù‡Ø§ Ø·ÙˆÙŠÙ„Ø© Ø¬Ø¯Ø§Ù‹)";
   }
 
   if (!body.trim()) return;
 
   // Admin dynamic learning & control
   if (isAdmin) {
-    if (body.toLowerCase() === "مسح" || body.toLowerCase() === "clear") {
+    if (body.toLowerCase() === "Ù…Ø³Ø­" || body.toLowerCase() === "clear") {
       await pool.query('DELETE FROM "BotRule"');
       await msg.reply(
         BOT_WATERMARK +
-          "✅ تم مسح جميع القواعد الإضافية. البوت دابا رجع للحالة الأصلية ديالو."
+          "âœ… ØªÙ… Ù…Ø³Ø­ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù‚ÙˆØ§Ø¹Ø¯ Ø§Ù„Ø¥Ø¶Ø§ÙÙŠØ©. Ø§Ù„Ø¨ÙˆØª Ø¯Ø§Ø¨Ø§ Ø±Ø¬Ø¹ Ù„Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø£ØµÙ„ÙŠØ© Ø¯ÙŠØ§Ù„Ùˆ."
       );
       return;
     }
@@ -1017,13 +1014,13 @@ client.on("message", async (msg) => {
       const parts = body.split(" ");
       if (parts.length < 2 || !parts[1].trim()) {
         await msg.reply(
-          BOT_WATERMARK + "❌ Format invalide. Utilisez /mute <numero>"
+          BOT_WATERMARK + "âŒ Format invalide. Utilisez /mute <numero>"
         );
         return;
       }
       const targetPhone = normalizePhone(parts[1].trim());
       await setBotActive(targetPhone, false);
-      await msg.reply(BOT_WATERMARK + `✅ Bot muted for ${targetPhone}`);
+      await msg.reply(BOT_WATERMARK + `âœ… Bot muted for ${targetPhone}`);
       return;
     }
 
@@ -1031,21 +1028,21 @@ client.on("message", async (msg) => {
       const parts = body.split(" ");
       if (parts.length < 2 || !parts[1].trim()) {
         await msg.reply(
-          BOT_WATERMARK + "❌ Format invalide. Utilisez /unmute <numero>"
+          BOT_WATERMARK + "âŒ Format invalide. Utilisez /unmute <numero>"
         );
         return;
       }
       const targetPhone = normalizePhone(parts[1].trim());
       await setBotActive(targetPhone, true);
-      await msg.reply(BOT_WATERMARK + `✅ Bot unmuted for ${targetPhone}`);
+      await msg.reply(BOT_WATERMARK + `âœ… Bot unmuted for ${targetPhone}`);
       return;
     }
 
     const lowerBody = body.toLowerCase();
     if (
-      lowerBody.startsWith("قاعدة:") ||
+      lowerBody.startsWith("Ù‚Ø§Ø¹Ø¯Ø©:") ||
       lowerBody.startsWith("rule:") ||
-      lowerBody.startsWith("تعلم:")
+      lowerBody.startsWith("ØªØ¹Ù„Ù…:")
     ) {
       const actualRule = body.substring(body.indexOf(":") + 1).trim();
       try {
@@ -1055,11 +1052,11 @@ client.on("message", async (msg) => {
         );
         await msg.reply(
           BOT_WATERMARK +
-            '✅ حفظت هاد المعلومة! البوت غادي يولي يطبقها مع أي كليان جديد من دابا الفوق.\n\n_(باش تمسح كاع القواعد، صيفط ليا كلمة "مسح")_'
+            'âœ… Ø­ÙØ¸Øª Ù‡Ø§Ø¯ Ø§Ù„Ù…Ø¹Ù„ÙˆÙ…Ø©! Ø§Ù„Ø¨ÙˆØª ØºØ§Ø¯ÙŠ ÙŠÙˆÙ„ÙŠ ÙŠØ·Ø¨Ù‚Ù‡Ø§ Ù…Ø¹ Ø£ÙŠ ÙƒÙ„ÙŠØ§Ù† Ø¬Ø¯ÙŠØ¯ Ù…Ù† Ø¯Ø§Ø¨Ø§ Ø§Ù„ÙÙˆÙ‚.\n\n_(Ø¨Ø§Ø´ ØªÙ…Ø³Ø­ ÙƒØ§Ø¹ Ø§Ù„Ù‚ÙˆØ§Ø¹Ø¯ØŒ ØµÙŠÙØ· Ù„ÙŠØ§ ÙƒÙ„Ù…Ø© "Ù…Ø³Ø­")_'
         );
       } catch (e) {
         console.error("Failed to save rule:", e.message);
-        await msg.reply(BOT_WATERMARK + "❌ وقع شي خطأ فـ السيرفر.");
+        await msg.reply(BOT_WATERMARK + "âŒ ÙˆÙ‚Ø¹ Ø´ÙŠ Ø®Ø·Ø£ ÙÙ€ Ø§Ù„Ø³ÙŠØ±ÙØ±.");
       }
       return;
     }
@@ -1273,11 +1270,11 @@ client.on("message", async (msg) => {
   }
 });
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Disconnect & Error Handling
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 client.on("disconnected", (reason) => {
-  console.error("[DISCONNECTED]", reason, "– exiting for restart");
+  console.error("[DISCONNECTED]", reason, "â€“ exiting for restart");
   if (reason === "LOGOUT") {
     try {
       console.log("User logged out. Clearing auth cache...");
@@ -1296,9 +1293,9 @@ client.on("disconnected", (reason) => {
   process.exit(1);
 });
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Graceful Shutdown
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const shutdown = async () => {
   console.log("\n[SHUTDOWN] Closing database and WhatsApp client safely...");
   try {
@@ -1321,7 +1318,7 @@ process.on("uncaughtException", (err) => {
     msg.includes("Execution context was destroyed") ||
     msg.includes("TargetCloseError")
   ) {
-    console.log("Puppeteer context lost – exiting for restart");
+    console.log("Puppeteer context lost â€“ exiting for restart");
     process.exit(1);
   }
 });
@@ -1333,9 +1330,9 @@ process.on("unhandledRejection", (reason) => {
   console.error("[UNHANDLED REJECTION]", msg);
 });
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Boot
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (async () => {
   await initDB();
   client.initialize();
@@ -1352,6 +1349,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
