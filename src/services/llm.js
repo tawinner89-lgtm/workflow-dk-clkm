@@ -3,7 +3,7 @@ const { Groq } = require("groq-sdk");
 require("dotenv").config();
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const groqModel = process.env.GROQ_MODEL || "llama-3.1-70b-versatile";
 
 global.GROQ_COOLDOWN_UNTIL = null;
 
@@ -75,3 +75,4 @@ async function askAI(messages, maxTokens = 800, retries = 3, opts = { json: fals
 }
 
 module.exports = { askAI, askDeepSeek };
+
