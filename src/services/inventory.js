@@ -17,24 +17,39 @@ pool.on("error", (err) => {
 
 async function recordSale(brand, btu, customerName, customerPhone) {
   const client = await pool.connect();
+  let result = { ok: false, stockUpdated: false };
   try {
     await client.query('BEGIN');
-    await client.query(
-      `UPDATE "Inventory" SET stock_quantity = GREATEST(stock_quantity - 1, 0) WHERE brand ILIKE $1 AND btu = $2`,
+    const updateRes = await client.query(
+      `UPDATE "Inventory" SET stock_quantity = GREATEST(stock_quantity - 1, 0) WHERE brand ILIKE $1 AND btu = $2 RETURNING stock_quantity`,
       [brand, btu]
     );
+    let stockUpdated = false;
+    let note = '';
+    if (updateRes.rowCount > 0) {
+        stockUpdated = true;
+        if (updateRes.rows[0].stock_quantity === 0) {
+           console.warn(`[INVENTORY WARNING] Stock for ${brand} ${btu} reached 0.`);
+        }
+    } else {
+        console.warn(`[INVENTORY WARNING] Brand ${brand} and BTU ${btu} not found in Inventory. Logging sale without deduction.`);
+        note = 'Model not found in Inventory';
+    }
     await client.query(
       `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status) VALUES ($1, $2, $3, $4, 'PENDING')`,
       [brand, btu, customerName, customerPhone]
     );
     await client.query('COMMIT');
-    console.log(`[INVENTORY] Reserved stock for ${brand} ${btu}. SalesLog created as PENDING.`);
+    console.log(`[INVENTORY] Logged sale for ${brand} ${btu}. Stock updated: ${stockUpdated}`);
+    result = { ok: true, stockUpdated };
   } catch (e) {
     await client.query('ROLLBACK');
     console.error("[INVENTORY ERROR recordSale]", e.stack || e.message);
+    result = { ok: false, error: e.message };
   } finally {
     client.release();
   }
+  return result;
 }
 
 async function cancelSale(saleId) {
@@ -124,5 +139,6 @@ async function updateExistingStock(brand, btu, amountToAdd) {
 }
 
 module.exports = { recordSale, cancelSale, confirmSale, recordManualSale, getCurrentStock, updateExistingStock };
+
 
 

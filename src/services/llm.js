@@ -1,9 +1,9 @@
-const axios = require("axios");
+﻿const axios = require("axios");
 const { Groq } = require("groq-sdk");
 require("dotenv").config();
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const groqModel = process.env.GROQ_MODEL || "llama-3.1-70b-versatile";
+const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 global.GROQ_COOLDOWN_UNTIL = null;
 
@@ -60,9 +60,14 @@ async function askAI(messages, maxTokens = 800, retries = 3, opts = { json: fals
       throw new Error("No fallback AI providers configured.");
     }
   } catch (err) {
-    const isRateLimit = err.message && (err.message.includes("429") || err.message.includes("rate_limit") || err.message.includes("Too Many Requests"));
+        const isRateLimit = err.message && (err.message.includes("429") || err.message.includes("rate_limit") || err.message.includes("Too Many Requests"));
+    const isDecommissioned = err.message && (err.message.includes("model_decommissioned") || err.message.includes("decommissioned"));
     
-    if (isRateLimit) {
+    if (isDecommissioned) {
+      console.warn("[LLM] Model decommissioned on Groq. Activating 1h global cooldown and falling back to DeepSeek.");
+      global.GROQ_COOLDOWN_UNTIL = Date.now() + 60 * 60 * 1000;
+      if (process.env.DEEPSEEK_API_KEY) return await askDeepSeek(messages, maxTokens, opts);
+    } else if (isRateLimit) {
       console.warn("[LLM] 429 Rate Limit on Groq. Activating 60s global cooldown and falling back to DeepSeek immediately.");
       global.GROQ_COOLDOWN_UNTIL = Date.now() + 60000;
       if (process.env.DEEPSEEK_API_KEY) return await askDeepSeek(messages, maxTokens, opts);
@@ -75,4 +80,6 @@ async function askAI(messages, maxTokens = 800, retries = 3, opts = { json: fals
 }
 
 module.exports = { askAI, askDeepSeek };
+
+
 
