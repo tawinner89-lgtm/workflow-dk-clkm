@@ -3,7 +3,7 @@ const { Groq } = require("groq-sdk");
 require("dotenv").config();
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const groqModel = "llama3-70b-8192"; // "openai/gpt-oss-120b" is not standard Groq
+const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 global.GROQ_COOLDOWN_UNTIL = null;
 
