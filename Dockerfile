@@ -1,4 +1,4 @@
-﻿FROM node:20-bullseye-slim
+FROM node:20-bullseye-slim
 
 # Install necessary libraries for Puppeteer/Chromium
 RUN apt-get update && apt-get install -y \
@@ -33,13 +33,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci || npm install
+COPY bot/package*.json ./bot/
+RUN cd bot && npm ci
 
-COPY . .
+COPY bot ./bot
+COPY shared ./shared
 
 # Railway automatically sets PORT, fallback to 8080
 ENV PORT=8080
 EXPOSE 8080
 
+WORKDIR /app/bot
 CMD ["node", "index.js"]

@@ -1,24 +1,15 @@
 {
-  "name": "whatsap-bot",
+  "name": "dkclim-monorepo",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "DK Clim WhatsApp bot and operations dashboard",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "axios": "^1.20.0",
-    "dotenv": "^17.4.2",
-    "groq-sdk": "^1.6.0",
-    "jsonrepair": "^3.15.0",
-    "localtunnel": "^2.0.2",
-    "pg": "^8.23.0",
-    "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js"
+    "start": "npm --prefix bot start",
+    "test": "npm --prefix bot test",
+    "test:bot": "npm --prefix bot test",
+    "install:bot": "npm --prefix bot ci",
+    "install:dashboard": "npm --prefix dashboard ci",
+    "build:dashboard": "npm --prefix dashboard run build",
+    "db:migrate:deploy": "npm --prefix dashboard run db:migrate:deploy"
   }
 }

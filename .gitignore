@@ -1,13 +1,21 @@
-node_modules
+node_modules/
+.next/
 .env
-.wwebjs_auth
-.wwebjs_cache
-qr.html
+.env.*
+!.env.example
+.wwebjs_auth/
+.wwebjs_cache/
 *.log
 .DS_Store
 admins.json
-
-DK Clim/
-
+dump_*.txt
+fix_*.js
+clean_*.js
+antigravity_*.js
+nuke_*.js
 backup_rules.json
 db_state.json
+*.tsbuildinfo
+dashboard/prisma/*.db
+qr.html
+DK Clim/

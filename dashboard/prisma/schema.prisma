@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Intervention {
+  id                 String   @id @default(cuid())
+  reference          String   @unique
+  clientName         String
+  clientAddress      String
+  clientContactName  String?
+  clientContactPhone String?
+  technicianName     String
+  type               String?
+  startTime          String?
+  endTime            String?
+  problemReported    String?
+  workDone           String?
+  workDoneOther      String?
+  materialsUsed      String?
+  blowTemperature    Float?
+  functioningTest    Boolean?
+  photoBeforeUrl     String?
+  photoAfterUrl      String?
+  observations       String?
+  finalStatus        Boolean?
+  signatureTechUrl   String?
+  signatureClientUrl String?
+  status             String   @default("PLANIFIEE")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  intent             String?
+  symptom            String?
+  ac_type            String?
+  units              Int?
+  brand              String?
+  btu                String?
+  budget             Float?
+  room_area          Float?
+  day                String?
+  time_window        String?
+  syncHash           String?  @unique
+
+  @@index([createdAt])
+  @@index([technicianName, status])
+}
+
+model Technician {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  phone     String?
+  isAvailable Boolean @default(true)
+}
+
+model BotMessage {
+  id        String   @id @default(cuid())
+  phone     String
+  role      String   // 'user' or 'assistant'
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model BotRule {
+  id        String   @id @default(cuid())
+  rule      String
+  createdAt DateTime @default(now())
+}
+
+model Inventory {
+  id             Int    @id @default(autoincrement())
+  brand          String
+  btu            String
+  stock_quantity Int
+
+  @@unique([brand, btu])
+  @@map("Inventory")
+}
+
+model SalesLog {
+  id             Int      @id @default(autoincrement())
+  timestamp      DateTime @default(now())
+  brand          String
+  btu            String
+  customer_name  String?
+  customer_phone String?
+  status         String?  @default("PENDING")
+
+  @@index([status])
+  @@map("SalesLog")
+}
+
+model InterventionSync {
+  hash      String   @id
+  createdAt DateTime @default(now())
+
+  @@map("InterventionSync")
+}
+
+
