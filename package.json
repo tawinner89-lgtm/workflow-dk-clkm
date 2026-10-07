@@ -4,7 +4,8 @@
   "private": true,
   "description": "DK Clim WhatsApp bot and operations dashboard",
   "scripts": {
-    "start": "npm --prefix bot start",
+    "start": "node index.js",
+    "postinstall": "npm --prefix bot ci",
     "test": "npm --prefix bot test",
     "test:bot": "npm --prefix bot test",
     "install:bot": "npm --prefix bot ci",
