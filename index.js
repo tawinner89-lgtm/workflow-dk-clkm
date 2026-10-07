@@ -1,4 +1,4 @@
-﻿if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
+if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
 ï»¿"use strict";
 require('dotenv').config();
 
