@@ -1,4 +1,5 @@
-﻿export const metadata = { title: 'DK CLIM - Inventaire & Ventes' };
+﻿export const dynamic = 'force-dynamic';
+export const metadata = { title: 'DK CLIM - Inventaire & Ventes' };
 import { prisma } from '@/lib/prisma';
 import GroupedInventory from '@/components/GroupedInventory';
 import NewSaleModal from '@/components/NewSaleModal';
@@ -133,5 +134,6 @@ export default async function InventoryPage() {
     </div>
   );
 }
+
 
 

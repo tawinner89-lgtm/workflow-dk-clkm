@@ -1,3 +1,4 @@
+﻿export const dynamic = 'force-dynamic';
 
 'use client';
 
@@ -99,7 +100,7 @@ export default function Home() {
           }
           
           // Cleanup: Only remove local PLANIFIEE/EN_COURS that are no longer on the server.
-          // NEVER delete TERMINEE/REPORTEE/ANNULEE from local — the technician's Historique
+          // NEVER delete TERMINEE/REPORTEE/ANNULEE from local â€” the technician's Historique
           // should persist even if admin cleans up the DB.
           const allLocal = await db.interventions
             .where('technicianName').equals(name)
@@ -171,7 +172,7 @@ export default function Home() {
             }} 
             className="text-brand-600 font-medium hover:underline flex items-center gap-1"
           >
-            ← Retour à la liste
+            â† Retour Ã  la liste
           </button>
         </div>
         <TechnicianForm draft={selectedIntervention} onComplete={() => {
@@ -210,7 +211,7 @@ export default function Home() {
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="" disabled>
-                  {availableTechs.length > 0 ? "Sélectionnez votre nom" : "Aucun technicien disponible"}
+                  {availableTechs.length > 0 ? "SÃ©lectionnez votre nom" : "Aucun technicien disponible"}
                 </option>
                 {availableTechs.map(t => (
                   <option key={t.name} value={t.name}>{t.name}</option>
@@ -272,7 +273,7 @@ export default function Home() {
               onClick={() => setActiveTab('A_FAIRE')}
               className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'A_FAIRE' ? 'bg-white dark:bg-slate-700 text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              À Faire
+              Ã€ Faire
             </button>
             <button 
               onClick={() => setActiveTab('HISTORIQUE')}
@@ -327,3 +328,4 @@ export default function Home() {
     </div>
   );
 }
+
