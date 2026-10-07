@@ -967,7 +967,7 @@ client.on("message", async (msg) => {
     return;
   }
 
-  Ã¯Â»Â¿// Media handler
+  // Media handler
   if (msg.hasMedia) {
     if (!body) {
       await pushMessage(userId, "user", "[Media file sans texte]");
