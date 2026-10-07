@@ -1,5 +1,5 @@
-if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
-ï»¿"use strict";
+﻿if (!process.env.ADMIN_PASSWORD) { console.warn('WARNING: ADMIN_PASSWORD not set. Using default fallback password.'); }
+Ã¯Â»Â¿"use strict";
 require('dotenv').config();
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -11,9 +11,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Dependencies
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const Groq = require("groq-sdk");
 const axios = require("axios");
@@ -24,9 +24,9 @@ const http = require("http");
 const { execSync } = require("child_process");
 const { Pool } = require("pg");
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Constants & Configuration
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const BOT_WATERMARK = "\u200B";
 
 // Phone Normalization Utilities
@@ -86,22 +86,22 @@ const CONFIG = {
   debounceDelay: 7000,
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Startup: remove stale Chrome lockfile
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const LOCKFILE = path.join(__dirname, ".wwebjs_auth", "session", "lockfile");
 try {
   if (fs.existsSync(LOCKFILE)) {
     fs.rmSync(LOCKFILE, { force: true });
-    console.log("ðŸ§¹ Stale lockfile removed");
+    console.log("Ã°Å¸Â§Â¹ Stale lockfile removed");
   }
 } catch (_) {
   /* ignore */
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Database Connection & Error Handling
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const dbConnectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString: dbConnectionString,
@@ -232,23 +232,23 @@ async function initDB() {
     TEAM_NUMBERS = Array.from(new Set([...DEFAULT_ADMINS, ...dbAdmins]));
 
     console.log(
-      `âœ… DB schema verified and initialized. Active admins: ${TEAM_NUMBERS.length}`
+      `Ã¢Å“â€¦ DB schema verified and initialized. Active admins: ${TEAM_NUMBERS.length}`
     );
   } catch (e) {
     console.error("DB Init Error:", e.message);
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // HTTP Server (Unified Router)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const QR_HTML_PATH = "qr.html";
 
 const httpServer = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${CONFIG.qrPort}`);
   const pathname = url.pathname;
 
-  // â”€â”€ GET /version â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ GET /version Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   if (req.method === "GET" && pathname === "/version") {
     const authHeader =
       req.headers["authorization"] || url.searchParams.get("token");
@@ -257,7 +257,7 @@ const httpServer = http.createServer((req, res) => {
       authHeader !== `Bearer ${CONFIG.notifyToken}`
     ) {
       res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, error: "Non autorisÃ©" }));
+      res.end(JSON.stringify({ success: false, error: "Non autorisÃƒÂ©" }));
       return;
     }
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -272,7 +272,7 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  // â”€â”€ POST /notify â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ POST /notify Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   if (req.method === "POST" && pathname === "/notify") {
     let body = "";
     req.on("data", (chunk) => {
@@ -284,7 +284,7 @@ const httpServer = http.createServer((req, res) => {
 
         if (payload.token !== CONFIG.notifyToken) {
           res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, error: "Non autorisÃ©" }));
+          res.end(JSON.stringify({ success: false, error: "Non autorisÃƒÂ©" }));
           return;
         }
 
@@ -315,7 +315,7 @@ const httpServer = http.createServer((req, res) => {
           res.end(
             JSON.stringify({
               success: false,
-              error: "NumÃ©ro de tÃ©lÃ©phone invalide",
+              error: "NumÃƒÂ©ro de tÃƒÂ©lÃƒÂ©phone invalide",
             })
           );
           return;
@@ -327,33 +327,33 @@ const httpServer = http.createServer((req, res) => {
             typeof workDone === "string"
               ? JSON.parse(workDone)
               : workDone || [];
-          if (arr.length > 0) workList = arr.map((w) => `  âœ” ${w}`).join("\n");
+          if (arr.length > 0) workList = arr.map((w) => `  Ã¢Å“â€ ${w}`).join("\n");
         } catch {
           workList = workDone || "";
         }
-        if (workDoneOther) workList += `\n  âœ” ${workDoneOther}`;
+        if (workDoneOther) workList += `\n  Ã¢Å“â€ ${workDoneOther}`;
 
-        const conformite = finalStatus ? "âœ… Conforme" : "âš ï¸ Non conforme";
+        const conformite = finalStatus ? "Ã¢Å“â€¦ Conforme" : "Ã¢Å¡Â Ã¯Â¸Â Non conforme";
         const horaires =
-          startTime && endTime ? `${startTime} â†’ ${endTime}` : "";
+          startTime && endTime ? `${startTime} Ã¢â€ â€™ ${endTime}` : "";
 
         const message = [
-          `ðŸŽ‰ *Ù…Ø±Ø­Ø¨Ø§Ù‹ ${clientName || ""}!*`,
+          `Ã°Å¸Å½â€° *Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§Ã™â€¹ ${clientName || ""}!*`,
           "",
-          `ØªÙ…Øª Ø®Ø¯Ù…ØªÙƒÙ… Ø¨Ù†Ø¬Ø§Ø­ Ù…Ù† Ø·Ø±Ù ÙØ±ÙŠÙ‚ *DK Climatisation* ðŸ†`,
+          `Ã˜ÂªÃ™â€¦Ã˜Âª Ã˜Â®Ã˜Â¯Ã™â€¦Ã˜ÂªÃ™Æ’Ã™â€¦ Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­ Ã™â€¦Ã™â€  Ã˜Â·Ã˜Â±Ã™Â Ã™ÂÃ˜Â±Ã™Å Ã™â€š *DK Climatisation* Ã°Å¸Ââ€ `,
           "",
-          `ðŸ“‹ *RÃ©fÃ©rence* : ${reference}`,
-          `ðŸ”§ *Type*       : ${type || "-"}`,
-          `ðŸ‘· *Technicien* : ${technicianName || "-"}`,
-          horaires ? `ðŸ• *Horaires*   : ${horaires}` : "",
-          workList ? `\nðŸ›  *Travaux effectuÃ©s :*\n${workList}` : "",
-          materialsUsed ? `\nðŸ“¦ *MatÃ©riaux* : ${materialsUsed}` : "",
-          observations ? `\nðŸ“ *Observations* : ${observations}` : "",
-          `\nâ­ *Statut final* : ${conformite}`,
+          `Ã°Å¸â€œâ€¹ *RÃƒÂ©fÃƒÂ©rence* : ${reference}`,
+          `Ã°Å¸â€Â§ *Type*       : ${type || "-"}`,
+          `Ã°Å¸â€˜Â· *Technicien* : ${technicianName || "-"}`,
+          horaires ? `Ã°Å¸â€¢Â *Horaires*   : ${horaires}` : "",
+          workList ? `\nÃ°Å¸â€ºÂ  *Travaux effectuÃƒÂ©s :*\n${workList}` : "",
+          materialsUsed ? `\nÃ°Å¸â€œÂ¦ *MatÃƒÂ©riaux* : ${materialsUsed}` : "",
+          observations ? `\nÃ°Å¸â€œÂ *Observations* : ${observations}` : "",
+          `\nÃ¢Â­Â *Statut final* : ${conformite}`,
           "",
-          `â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”`,
-          `Ø´ÙƒØ±Ø§Ù‹ Ù„Ø«Ù‚ØªÙƒÙ… ÙÙŠ DK Clim ðŸ™`,
-          `Ù„Ø£ÙŠ Ø³Ø¤Ø§Ù„ Ø£Ùˆ Ø§Ø³ØªÙØ³Ø§Ø±: 0612540085`,
+          `Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`,
+          `Ã˜Â´Ã™Æ’Ã˜Â±Ã˜Â§Ã™â€¹ Ã™â€žÃ˜Â«Ã™â€šÃ˜ÂªÃ™Æ’Ã™â€¦ Ã™ÂÃ™Å  DK Clim Ã°Å¸â„¢Â`,
+          `Ã™â€žÃ˜Â£Ã™Å  Ã˜Â³Ã˜Â¤Ã˜Â§Ã™â€ž Ã˜Â£Ã™Ë† Ã˜Â§Ã˜Â³Ã˜ÂªÃ™ÂÃ˜Â³Ã˜Â§Ã˜Â±: 0612540085`,
         ]
           .filter((l) => l !== "")
           .join("\n");
@@ -361,7 +361,7 @@ const httpServer = http.createServer((req, res) => {
         setImmediate(async () => {
           try {
             await client.sendMessage(waId, BOT_WATERMARK + message);
-            console.log(`âœ… [NOTIFY] Sent to ${waId} for ${reference}`);
+            console.log(`Ã¢Å“â€¦ [NOTIFY] Sent to ${waId} for ${reference}`);
           } catch (e) {
             console.error(`[NOTIFY ERR] Could not send to ${waId}:`, e.message);
           }
@@ -377,11 +377,11 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  // â”€â”€ GET / â†’ QR page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ GET / Ã¢â€ â€™ QR page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   fs.readFile(QR_HTML_PATH, (err, data) => {
     if (err) {
       res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("QR not generated yet â€“ please wait...");
+      res.end("QR not generated yet Ã¢â‚¬â€œ please wait...");
       return;
     }
     res.writeHead(200, {
@@ -394,15 +394,15 @@ const httpServer = http.createServer((req, res) => {
 
 httpServer.listen(CONFIG.qrPort, () => {
   console.log(
-    `ðŸŒ  HTTP server â†’ http://localhost:${CONFIG.qrPort}  (QR + /notify)`
+    `Ã°Å¸Å’Â  HTTP server Ã¢â€ â€™ http://localhost:${CONFIG.qrPort}  (QR + /notify)`
   );
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // System Prompt (DK Clim Commercial Agent)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Database Helpers & Repositories
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 async function getHistory(userId) {
   try {
     const res = await pool.query(
@@ -487,15 +487,15 @@ function detectHandoff(reply) {
     .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, "-");
 
   const isConditional =
-    /(Ù…Ù†ÙŠÙ† ØªÙˆØµÙ„Ù†Ø§|Ù…Ù† Ø¨Ø¹Ø¯ Ù…Ø§ ØªÙˆØµÙ„Ù†Ø§|once we have|dÃ¨s que nous aurons reÃ§u|si vous souhaitez.*transmettre|Ø¨Ø§Ø´ Ù†Ù‚Ø¯Ø±.*Ù†Ø´ÙˆÙÙˆ|pour que nous puissions.*transmettre)/i.test(
+    /(Ã™â€¦Ã™â€ Ã™Å Ã™â€  Ã˜ÂªÃ™Ë†Ã˜ÂµÃ™â€žÃ™â€ Ã˜Â§|Ã™â€¦Ã™â€  Ã˜Â¨Ã˜Â¹Ã˜Â¯ Ã™â€¦Ã˜Â§ Ã˜ÂªÃ™Ë†Ã˜ÂµÃ™â€žÃ™â€ Ã˜Â§|once we have|dÃƒÂ¨s que nous aurons reÃƒÂ§u|si vous souhaitez.*transmettre|Ã˜Â¨Ã˜Â§Ã˜Â´ Ã™â€ Ã™â€šÃ˜Â¯Ã˜Â±.*Ã™â€ Ã˜Â´Ã™Ë†Ã™ÂÃ™Ë†|pour que nous puissions.*transmettre)/i.test(
       text
     );
 
   const appointmentRegex =
-    /(nous allons v[Ã©Ã¨e]rifier.*service rendez-vous|transmis.*service rendez-vous|transmettre.*service rendez-vous|demande a .t. transmise.*rendez-vous|ØºØ§Ø¯ÙŠ Ù†Ø´ÙˆÙÙˆ Ù…Ø¹ Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|ØªÙ… ØªØ­ÙˆÙŠÙ„.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|Ù†Ø£ÙƒØ¯Ùˆ Ù…Ø¹Ø§Ùƒ Ø£Ù‚Ø±Ø¨ Ù…ÙˆØ¹Ø¯|Ù†Ø¯ÙˆØ²ÙˆÙ‡Ù… Ù„Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|Ù†ØµÙŠÙØ·.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|ØªØ³Ø¬Ù„Ùˆ.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|ØªØ³Ø¬Ù„Ø§Øª.*Ù‚Ø³Ù… Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯|service rendez-vous)/i;
+    /(nous allons v[ÃƒÂ©ÃƒÂ¨e]rifier.*service rendez-vous|transmis.*service rendez-vous|transmettre.*service rendez-vous|demande a .t. transmise.*rendez-vous|Ã˜ÂºÃ˜Â§Ã˜Â¯Ã™Å  Ã™â€ Ã˜Â´Ã™Ë†Ã™ÂÃ™Ë† Ã™â€¦Ã˜Â¹ Ã™â€šÃ˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™Ë†Ã˜Â§Ã˜Â¹Ã™Å Ã˜Â¯|Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã™Ë†Ã™Å Ã™â€ž.*Ã™â€šÃ˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™Ë†Ã˜Â§Ã˜Â¹Ã™Å Ã˜Â¯|Ã™â€ Ã˜Â£Ã™Æ’Ã˜Â¯Ã™Ë† Ã™â€¦Ã˜Â¹Ã˜Â§Ã™Æ’ Ã˜Â£Ã™â€šÃ˜Â±Ã˜Â¨ Ã™â€¦Ã™Ë†Ã˜Â¹Ã˜Â¯|Ã™â€ Ã˜Â¯Ã™Ë†Ã˜Â²Ã™Ë†Ã™â€¡Ã™â€¦ Ã™â€žÃ™â€šÃ˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™Ë†Ã˜Â§Ã˜Â¹Ã™Å Ã˜Â¯|Ã™â€ Ã˜ÂµÃ™Å Ã™ÂÃ˜Â·.*Ã™â€šÃ˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™Ë†Ã˜Â§Ã˜Â¹Ã™Å Ã˜Â¯|Ã˜ÂªÃ˜Â³Ã˜Â¬Ã™â€žÃ™Ë†.*Ã™â€šÃ˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™Ë†Ã˜Â§Ã˜Â¹Ã™Å Ã˜Â¯|Ã˜ÂªÃ˜Â³Ã˜Â¬Ã™â€žÃ˜Â§Ã˜Âª.*Ã™â€šÃ˜Â³Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã™Ë†Ã˜Â§Ã˜Â¹Ã™Å Ã˜Â¯|service rendez-vous)/i;
 
   const commercialRegex =
-    /(transmis.*service commercial|transf.rer.*service commercial|demande a .t. transmise.*commercial|ØªÙ… ØªØ­ÙˆÙŠÙ„.*Ù…ØµÙ„Ø­Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª|ØªÙ… Ø¥Ø±Ø³Ø§Ù„.*Ù…ØµÙ„Ø­Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª)/i;
+    /(transmis.*service commercial|transf.rer.*service commercial|demande a .t. transmise.*commercial|Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã™Ë†Ã™Å Ã™â€ž.*Ã™â€¦Ã˜ÂµÃ™â€žÃ˜Â­Ã˜Â© Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¨Ã™Å Ã˜Â¹Ã˜Â§Ã˜Âª|Ã˜ÂªÃ™â€¦ Ã˜Â¥Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€ž.*Ã™â€¦Ã˜ÂµÃ™â€žÃ˜Â­Ã˜Â© Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¨Ã™Å Ã˜Â¹Ã˜Â§Ã˜Âª)/i;
 
   if (appointmentRegex.test(text) && !isConditional) {
     return "HANDED_OFF_TO_APPOINTMENT";
@@ -507,9 +507,9 @@ function detectHandoff(reply) {
   return null;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Admin Dashboard Sync (DK Clim Next.js App)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 async function syncToAdmin(history, userId) {
     if (history.length < 4) return;
 
@@ -554,7 +554,7 @@ async function syncToAdmin(history, userId) {
 
   // DETERMINISTIC VALIDATION: DO NOT trigger intervention if phone or time is missing.
   if (phone === "Non fourni" || !data.proposedTime) {
-    console.log("âŒ [VALIDATION FAILED] Missing phone or time. Intervention aborted.");
+    console.log("Ã¢ÂÅ’ [VALIDATION FAILED] Missing phone or time. Intervention aborted.");
     return;
   }
 
@@ -574,7 +574,7 @@ async function syncToAdmin(history, userId) {
       [syncHash]
     );
     if (res.rowCount === 0) {
-      console.log("âŒ [VALIDATION FAILED] Duplicate intervention detected deterministically. Aborting.");
+      console.log("Ã¢ÂÅ’ [VALIDATION FAILED] Duplicate intervention detected deterministically. Aborting.");
       return;
     }
   } catch (e) {
@@ -602,10 +602,10 @@ async function syncToAdmin(history, userId) {
     proposedTime: data.proposedTime || undefined,
     problemReported: data.problemReported || "Demande via WhatsApp Bot",
     type: data.type || "Installation",
-    technicianName: assignedTech ? assignedTech.name : "Ã€ assigner (Bot)",
+    technicianName: assignedTech ? assignedTech.name : "Ãƒâ‚¬ assigner (Bot)",
   };
 
-  console.log("\nðŸŽ¯ [BOOKING DETECTED]", payload);
+  console.log("\nÃ°Å¸Å½Â¯ [BOOKING DETECTED]", payload);
 
   try {
     const res = await axios.post(CONFIG.adminWebhookUrl, payload, {
@@ -617,21 +617,21 @@ async function syncToAdmin(history, userId) {
     });
     if (res.data?.success) {
       
-      console.log("âœ… [ADMIN SYNC] Intervention:", res.data.data?.reference);
+      console.log("Ã¢Å“â€¦ [ADMIN SYNC] Intervention:", res.data.data?.reference);
 
       if (assignedTech && assignedTech.phone) {
         const techChatId = normalizePhone(assignedTech.phone);
         let timeSuffix = `_Merci de contacter le client pour confirmer l'heure de visite._`;
         if (payload.proposedTime) {
-          timeSuffix = `ðŸ• *CrÃ©neau proposÃ©:* ${payload.proposedTime} â€” Ã€ CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilitÃ© du crÃ©neau._`;
+          timeSuffix = `Ã°Å¸â€¢Â *CrÃƒÂ©neau proposÃƒÂ©:* ${payload.proposedTime} Ã¢â‚¬â€ Ãƒâ‚¬ CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilitÃƒÂ© du crÃƒÂ©neau._`;
         }
 
         const notifMsg =
-          `ðŸš¨ *NOUVELLE INTERVENTION ASSIGNÃ‰E* ðŸš¨\n\n` +
-          `ðŸ‘¤ *Client:* ${payload.clientName}\n` +
-          `ðŸ“ *Adresse:* ${payload.clientAddress}\n` +
-          `ðŸ“ž *TÃ©lÃ©phone:* ${payload.clientContactPhone}\n` +
-          `ðŸ”§ *ProblÃ¨me/Type:* ${payload.problemReported} (${payload.type})\n\n` +
+          `Ã°Å¸Å¡Â¨ *NOUVELLE INTERVENTION ASSIGNÃƒâ€°E* Ã°Å¸Å¡Â¨\n\n` +
+          `Ã°Å¸â€˜Â¤ *Client:* ${payload.clientName}\n` +
+          `Ã°Å¸â€œÂ *Adresse:* ${payload.clientAddress}\n` +
+          `Ã°Å¸â€œÅ¾ *TÃƒÂ©lÃƒÂ©phone:* ${payload.clientContactPhone}\n` +
+          `Ã°Å¸â€Â§ *ProblÃƒÂ¨me/Type:* ${payload.problemReported} (${payload.type})\n\n` +
           timeSuffix;
 
         client
@@ -644,9 +644,9 @@ async function syncToAdmin(history, userId) {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // WhatsApp Client Setup
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const client = new Client({
   authStrategy: new LocalAuth(),
   webVersionCache: {
@@ -682,18 +682,18 @@ client.on("qr", (qr) => {
 <head>
   <meta charset="utf-8">
   <meta http-equiv="refresh" content="20">
-  <title>DK Clim â€“ Scan QR</title>
+  <title>DK Clim Ã¢â‚¬â€œ Scan QR</title>
   <style>body{font-family:sans-serif;text-align:center;padding:40px;background:#0b1b24;color:#fff}</style>
 </head>
 <body>
-  <h2>ðŸ“± Scannez avec WhatsApp</h2>
+  <h2>Ã°Å¸â€œÂ± Scannez avec WhatsApp</h2>
   <img src="${imgUrl}" alt="QR Code" width="360">
-  <p style="opacity:.6">La page se rafraÃ®chit automatiquement toutes les 20 secondes.</p>
+  <p style="opacity:.6">La page se rafraÃƒÂ®chit automatiquement toutes les 20 secondes.</p>
 </body>
 </html>`;
 
   fs.writeFileSync(QR_HTML_PATH, html, "utf8");
-  console.log("\nðŸ”‘ New QR generated â†’", `http://localhost:${CONFIG.qrPort}`);
+  console.log("\nÃ°Å¸â€â€˜ New QR generated Ã¢â€ â€™", `http://localhost:${CONFIG.qrPort}`);
 
   if (!qrBrowserOpened) {
     if (process.platform === "win32" && process.env.NODE_ENV !== "production") {
@@ -708,16 +708,16 @@ client.on("qr", (qr) => {
 });
 
 client.on("ready", async () => {
-  console.log("âœ… WhatsApp Client is READY!");
+  console.log("Ã¢Å“â€¦ WhatsApp Client is READY!");
   qrBrowserOpened = true;
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Dynamic System Prompt (Base + DB Rules)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Message State & Queues
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const debounceTimers = new Map();
 const isProcessing = new Map();
 
@@ -769,10 +769,10 @@ async function notifyAdminV2(userId, slots) {
     proposedTime: slots.day ? `${slots.day} ${slots.time_window_or_hour || ''}` : "N/A",
     problemReported: slots.symptom || "Demande via V2 Bot",
     type: slots.ac_type || "Inconnu",
-    technicianName: "Ã€ assigner (V2 Bot)",
+    technicianName: "Ãƒâ‚¬ assigner (V2 Bot)",
   };
 
-  console.log("\nâœ… [V2 BOOKING DETECTED]", payload);
+  console.log("\nÃ¢Å“â€¦ [V2 BOOKING DETECTED]", payload);
   try {
     const crypto = require('crypto');
     const payloadString = JSON.stringify(payload);
@@ -785,9 +785,9 @@ async function notifyAdminV2(userId, slots) {
       },
       timeout: 6000,
     });
-    console.log("ðŸŸ¢ [ADMIN SYNC] Webhook success:", res.data?.data?.reference || "OK");
+    console.log("Ã°Å¸Å¸Â¢ [ADMIN SYNC] Webhook success:", res.data?.data?.reference || "OK");
   } catch (err) {
-    console.error("ðŸ”´ [WEBHOOK ERROR]", err.response?.data || err.message);
+    console.error("Ã°Å¸â€Â´ [WEBHOOK ERROR]", err.response?.data || err.message);
   }
 
   let assignedTech = null;
@@ -802,15 +802,15 @@ async function notifyAdminV2(userId, slots) {
     const techChatId = normalizePhone(assignedTech.phone);
     let timeSuffix = '_Merci de contacter le client pour confirmer l\'heure de visite._';
     if (payload.proposedTime !== "N/A") {
-      timeSuffix = `ðŸ•’ *CrÃ©neau proposÃ©:* ${payload.proposedTime} - Ã€ CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilitÃ© du crÃ©neau.`;
+      timeSuffix = `Ã°Å¸â€¢â€™ *CrÃƒÂ©neau proposÃƒÂ©:* ${payload.proposedTime} - Ãƒâ‚¬ CONFIRMER\n\n_Merci de contacter le client pour confirmer la disponibilitÃƒÂ© du crÃƒÂ©neau.`;
     }
 
     const notifMsg =
-      'ðŸ› ï¸ *NOUVELLE INTERVENTION ASSIGNÃ‰E (V2)* ðŸ› ï¸\n\n' +
-      'ðŸ‘¤ *Client:* ' + payload.clientName + '\n' +
-      'ðŸ“ *Adresse:* ' + payload.clientAddress + '\n' +
-      'ðŸ“ž *TÃ©lÃ©phone:* ' + payload.clientContactPhone + '\n' +
-      'ðŸ”§ *ProblÃ¨me/Type:* ' + payload.problemReported + ' (' + payload.type + ')\n\n' +
+      'Ã°Å¸â€ºÂ Ã¯Â¸Â *NOUVELLE INTERVENTION ASSIGNÃƒâ€°E (V2)* Ã°Å¸â€ºÂ Ã¯Â¸Â\n\n' +
+      'Ã°Å¸â€˜Â¤ *Client:* ' + payload.clientName + '\n' +
+      'Ã°Å¸â€œÂ *Adresse:* ' + payload.clientAddress + '\n' +
+      'Ã°Å¸â€œÅ¾ *TÃƒÂ©lÃƒÂ©phone:* ' + payload.clientContactPhone + '\n' +
+      'Ã°Å¸â€Â§ *ProblÃƒÂ¨me/Type:* ' + payload.problemReported + ' (' + payload.type + ')\n\n' +
       timeSuffix;
 
     client.sendMessage(techChatId, BOT_WATERMARK + notifMsg).catch((err) => console.error("Failed to notify tech:", err.message));
@@ -850,7 +850,7 @@ client.on("message", async (msg) => {
   } catch (e) {}
   const userId = normalizePhone(rawPhone);
 
-  // ðŸš¨ PERSISTENT DATABASE DUPLICATE PROTECTION ðŸš¨
+  // Ã°Å¸Å¡Â¨ PERSISTENT DATABASE DUPLICATE PROTECTION Ã°Å¸Å¡Â¨
   if (msg.id && msg.id.id) {
     try {
       let isDuplicate = false;
@@ -910,10 +910,10 @@ client.on("message", async (msg) => {
       } catch (_) {}
       await msg.reply(
         BOT_WATERMARK +
-          "âœ… ÙƒÙ„Ù…Ø© Ø§Ù„Ø³Ø± ØµØ­ÙŠØ­Ø©! ØªÙ…Øª Ø¥Ø¶Ø§ÙØªÙƒ ÙƒØ£Ø¯Ù…Ù† Ø¨Ù†Ø¬Ø§Ø­. Ø§Ù„Ø¨ÙˆØª Ø¯Ø§Ø¨Ø§ ÙƒÙŠØ¹Ø±ÙÙƒ."
+          "Ã¢Å“â€¦ Ã™Æ’Ã™â€žÃ™â€¦Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â± Ã˜ÂµÃ˜Â­Ã™Å Ã˜Â­Ã˜Â©! Ã˜ÂªÃ™â€¦Ã˜Âª Ã˜Â¥Ã˜Â¶Ã˜Â§Ã™ÂÃ˜ÂªÃ™Æ’ Ã™Æ’Ã˜Â£Ã˜Â¯Ã™â€¦Ã™â€  Ã˜Â¨Ã™â€ Ã˜Â¬Ã˜Â§Ã˜Â­. Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª Ã˜Â¯Ã˜Â§Ã˜Â¨Ã˜Â§ Ã™Æ’Ã™Å Ã˜Â¹Ã˜Â±Ã™ÂÃ™Æ’."
       );
     } else {
-      await msg.reply(BOT_WATERMARK + "âœ… Ù†ØªØ§ Ø¯ÙŠØ¬Ø§ Ø±Ø§Ùƒ Ù…Ø³Ø¬Ù„ ÙƒØ£Ø¯Ù…Ù†!");
+      await msg.reply(BOT_WATERMARK + "Ã¢Å“â€¦ Ã™â€ Ã˜ÂªÃ˜Â§ Ã˜Â¯Ã™Å Ã˜Â¬Ã˜Â§ Ã˜Â±Ã˜Â§Ã™Æ’ Ã™â€¦Ã˜Â³Ã˜Â¬Ã™â€ž Ã™Æ’Ã˜Â£Ã˜Â¯Ã™â€¦Ã™â€ !");
     }
     return;
   }
@@ -927,10 +927,10 @@ client.on("message", async (msg) => {
         await pool.query(`UPDATE "LeadStatus" SET is_bot_active = true`);
         await msg.reply(
           BOT_WATERMARK +
-            "âœ… URGENCE : Tous les clients de la base de donnÃ©es ont Ã©tÃ© rÃ©activÃ©s (is_bot_active = true)."
+            "Ã¢Å“â€¦ URGENCE : Tous les clients de la base de donnÃƒÂ©es ont ÃƒÂ©tÃƒÂ© rÃƒÂ©activÃƒÂ©s (is_bot_active = true)."
         );
       } catch (e) {
-        await msg.reply(BOT_WATERMARK + "âŒ Erreur DB: " + e.message);
+        await msg.reply(BOT_WATERMARK + "Ã¢ÂÅ’ Erreur DB: " + e.message);
       }
     }
     return;
@@ -944,10 +944,10 @@ client.on("message", async (msg) => {
         );
         await msg.reply(
           BOT_WATERMARK +
-            "âœ… PURGE EFFECTUÃ‰E : Tous les anciens clients sont exclus des futures relances (reminder_count = 1)."
+            "Ã¢Å“â€¦ PURGE EFFECTUÃƒâ€°E : Tous les anciens clients sont exclus des futures relances (reminder_count = 1)."
         );
       } catch (e) {
-        await msg.reply(BOT_WATERMARK + "âŒ Erreur DB: " + e.message);
+        await msg.reply(BOT_WATERMARK + "Ã¢ÂÅ’ Erreur DB: " + e.message);
       }
     }
     return;
@@ -963,12 +963,12 @@ client.on("message", async (msg) => {
       );
     } catch (_) {}
     await msg.reply(
-      BOT_WATERMARK + "Ù…Ø±Ø­Ø¨Ø§ØŒ Ø´ÙŠ ÙˆØ§Ø­Ø¯ Ù…Ù† Ø§Ù„ÙØ±ÙŠÙ‚ ØºØ§Ø¯ÙŠ ÙŠØ³Ù…Ø¹ Ø§Ù„Ø£ÙˆØ¯ÙŠÙˆ Ø¯ÙŠØ§Ù„Ùƒ ÙˆÙŠØ¬Ø§ÙˆØ¨Ùƒ ÙØ£Ù‚Ø±Ø¨ ÙˆÙ‚Øª.\n\nBonjour, un membre de notre Ã©quipe Ã©coutera votre audio et vous rÃ©pondra dans les plus brefs dÃ©lais."
+      BOT_WATERMARK + "Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§Ã˜Å’ Ã˜Â´Ã™Å  Ã™Ë†Ã˜Â§Ã˜Â­Ã˜Â¯ Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ™ÂÃ˜Â±Ã™Å Ã™â€š Ã˜ÂºÃ˜Â§Ã˜Â¯Ã™Å  Ã™Å Ã˜Â³Ã™â€¦Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â£Ã™Ë†Ã˜Â¯Ã™Å Ã™Ë† Ã˜Â¯Ã™Å Ã˜Â§Ã™â€žÃ™Æ’ Ã™Ë†Ã™Å Ã˜Â¬Ã˜Â§Ã™Ë†Ã˜Â¨Ã™Æ’ Ã™ÂÃ˜Â£Ã™â€šÃ˜Â±Ã˜Â¨ Ã™Ë†Ã™â€šÃ˜Âª.\n\nBonjour, un membre de notre ÃƒÂ©quipe ÃƒÂ©coutera votre audio et vous rÃƒÂ©pondra dans les plus brefs dÃƒÂ©lais."
     );
     return;
   }
 
-  ï»¿// Media handler
+  Ã¯Â»Â¿// Media handler
   if (msg.hasMedia) {
     if (!body) {
       await pushMessage(userId, "user", "[Media file sans texte]");
@@ -984,28 +984,28 @@ client.on("message", async (msg) => {
       if (now - lastReply > 2 * 60 * 1000) {
         lastMediaReply.set(userId, now);
         await msg.reply(
-          BOT_WATERMARK + "Ù…Ø±Ø­Ø¨Ø§ Ø¨ÙƒØŒ Ø³ÙŠÙ‚ÙˆÙ… Ø£Ø­Ø¯ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„ØªÙ‚Ù†ÙŠ Ø¨Ù…Ø±Ø§Ø¬Ø¹Ø© Ø§Ù„Ù…Ù„ÙØ§Øª ÙˆØ§Ù„Ø±Ø¯ Ø¹Ù„ÙŠÙƒ ÙÙŠ Ø£Ù‚Ø±Ø¨ ÙˆÙ‚Øª.\n\nBonjour, notre Ã©quipe technique examinera ceci et vous rÃ©pondra dans les plus brefs dÃ©lais."
+          BOT_WATERMARK + "Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§ Ã˜Â¨Ã™Æ’Ã˜Å’ Ã˜Â³Ã™Å Ã™â€šÃ™Ë†Ã™â€¦ Ã˜Â£Ã˜Â­Ã˜Â¯ Ã˜Â£Ã˜Â¹Ã˜Â¶Ã˜Â§Ã˜Â¡ Ã˜Â§Ã™â€žÃ™ÂÃ˜Â±Ã™Å Ã™â€š Ã˜Â§Ã™â€žÃ˜ÂªÃ™â€šÃ™â€ Ã™Å  Ã˜Â¨Ã™â€¦Ã˜Â±Ã˜Â§Ã˜Â¬Ã˜Â¹Ã˜Â© Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™ÂÃ˜Â§Ã˜Âª Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â¯ Ã˜Â¹Ã™â€žÃ™Å Ã™Æ’ Ã™ÂÃ™Å  Ã˜Â£Ã™â€šÃ˜Â±Ã˜Â¨ Ã™Ë†Ã™â€šÃ˜Âª.\n\nBonjour, notre ÃƒÂ©quipe technique examinera ceci et vous rÃƒÂ©pondra dans les plus brefs dÃƒÂ©lais."
         );
       }
       return;
     } else {
-      body = `[SYSTEM: L'utilisateur a envoyÃ© une image/vidÃ©o avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et rÃ©ponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
+      body = `[SYSTEM: L'utilisateur a envoyÃƒÂ© une image/vidÃƒÂ©o avec ce texte. Tu ne peux pas voir l'image. Ignore l'image et rÃƒÂ©ponds UNIQUEMENT au texte de l'utilisateur.] ${body}`;
     }
   }
 
   if (body.length > 1000) {
-    body = body.substring(0, 1000) + "... (ØªÙ… Ù‚Ø·Ø¹ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ù„Ø£Ù†Ù‡Ø§ Ø·ÙˆÙŠÙ„Ø© Ø¬Ø¯Ø§Ù‹)";
+    body = body.substring(0, 1000) + "... (Ã˜ÂªÃ™â€¦ Ã™â€šÃ˜Â·Ã˜Â¹ Ã˜Â§Ã™â€žÃ˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ˜Â© Ã™â€žÃ˜Â£Ã™â€ Ã™â€¡Ã˜Â§ Ã˜Â·Ã™Ë†Ã™Å Ã™â€žÃ˜Â© Ã˜Â¬Ã˜Â¯Ã˜Â§Ã™â€¹)";
   }
 
   if (!body.trim()) return;
 
   // Admin dynamic learning & control
   if (isAdmin) {
-    if (body.toLowerCase() === "Ù…Ø³Ø­" || body.toLowerCase() === "clear") {
+    if (body.toLowerCase() === "Ã™â€¦Ã˜Â³Ã˜Â­" || body.toLowerCase() === "clear") {
       await pool.query('DELETE FROM "BotRule"');
       await msg.reply(
         BOT_WATERMARK +
-          "âœ… ØªÙ… Ù…Ø³Ø­ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù‚ÙˆØ§Ø¹Ø¯ Ø§Ù„Ø¥Ø¶Ø§ÙÙŠØ©. Ø§Ù„Ø¨ÙˆØª Ø¯Ø§Ø¨Ø§ Ø±Ø¬Ø¹ Ù„Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø£ØµÙ„ÙŠØ© Ø¯ÙŠØ§Ù„Ùˆ."
+          "Ã¢Å“â€¦ Ã˜ÂªÃ™â€¦ Ã™â€¦Ã˜Â³Ã˜Â­ Ã˜Â¬Ã™â€¦Ã™Å Ã˜Â¹ Ã˜Â§Ã™â€žÃ™â€šÃ™Ë†Ã˜Â§Ã˜Â¹Ã˜Â¯ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¶Ã˜Â§Ã™ÂÃ™Å Ã˜Â©. Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª Ã˜Â¯Ã˜Â§Ã˜Â¨Ã˜Â§ Ã˜Â±Ã˜Â¬Ã˜Â¹ Ã™â€žÃ™â€žÃ˜Â­Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â§Ã™â€žÃ˜Â£Ã˜ÂµÃ™â€žÃ™Å Ã˜Â© Ã˜Â¯Ã™Å Ã˜Â§Ã™â€žÃ™Ë†."
       );
       return;
     }
@@ -1014,13 +1014,13 @@ client.on("message", async (msg) => {
       const parts = body.split(" ");
       if (parts.length < 2 || !parts[1].trim()) {
         await msg.reply(
-          BOT_WATERMARK + "âŒ Format invalide. Utilisez /mute <numero>"
+          BOT_WATERMARK + "Ã¢ÂÅ’ Format invalide. Utilisez /mute <numero>"
         );
         return;
       }
       const targetPhone = normalizePhone(parts[1].trim());
       await setBotActive(targetPhone, false);
-      await msg.reply(BOT_WATERMARK + `âœ… Bot muted for ${targetPhone}`);
+      await msg.reply(BOT_WATERMARK + `Ã¢Å“â€¦ Bot muted for ${targetPhone}`);
       return;
     }
 
@@ -1028,21 +1028,21 @@ client.on("message", async (msg) => {
       const parts = body.split(" ");
       if (parts.length < 2 || !parts[1].trim()) {
         await msg.reply(
-          BOT_WATERMARK + "âŒ Format invalide. Utilisez /unmute <numero>"
+          BOT_WATERMARK + "Ã¢ÂÅ’ Format invalide. Utilisez /unmute <numero>"
         );
         return;
       }
       const targetPhone = normalizePhone(parts[1].trim());
       await setBotActive(targetPhone, true);
-      await msg.reply(BOT_WATERMARK + `âœ… Bot unmuted for ${targetPhone}`);
+      await msg.reply(BOT_WATERMARK + `Ã¢Å“â€¦ Bot unmuted for ${targetPhone}`);
       return;
     }
 
     const lowerBody = body.toLowerCase();
     if (
-      lowerBody.startsWith("Ù‚Ø§Ø¹Ø¯Ø©:") ||
+      lowerBody.startsWith("Ã™â€šÃ˜Â§Ã˜Â¹Ã˜Â¯Ã˜Â©:") ||
       lowerBody.startsWith("rule:") ||
-      lowerBody.startsWith("ØªØ¹Ù„Ù…:")
+      lowerBody.startsWith("Ã˜ÂªÃ˜Â¹Ã™â€žÃ™â€¦:")
     ) {
       const actualRule = body.substring(body.indexOf(":") + 1).trim();
       try {
@@ -1052,11 +1052,11 @@ client.on("message", async (msg) => {
         );
         await msg.reply(
           BOT_WATERMARK +
-            'âœ… Ø­ÙØ¸Øª Ù‡Ø§Ø¯ Ø§Ù„Ù…Ø¹Ù„ÙˆÙ…Ø©! Ø§Ù„Ø¨ÙˆØª ØºØ§Ø¯ÙŠ ÙŠÙˆÙ„ÙŠ ÙŠØ·Ø¨Ù‚Ù‡Ø§ Ù…Ø¹ Ø£ÙŠ ÙƒÙ„ÙŠØ§Ù† Ø¬Ø¯ÙŠØ¯ Ù…Ù† Ø¯Ø§Ø¨Ø§ Ø§Ù„ÙÙˆÙ‚.\n\n_(Ø¨Ø§Ø´ ØªÙ…Ø³Ø­ ÙƒØ§Ø¹ Ø§Ù„Ù‚ÙˆØ§Ø¹Ø¯ØŒ ØµÙŠÙØ· Ù„ÙŠØ§ ÙƒÙ„Ù…Ø© "Ù…Ø³Ø­")_'
+            'Ã¢Å“â€¦ Ã˜Â­Ã™ÂÃ˜Â¸Ã˜Âª Ã™â€¡Ã˜Â§Ã˜Â¯ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¹Ã™â€žÃ™Ë†Ã™â€¦Ã˜Â©! Ã˜Â§Ã™â€žÃ˜Â¨Ã™Ë†Ã˜Âª Ã˜ÂºÃ˜Â§Ã˜Â¯Ã™Å  Ã™Å Ã™Ë†Ã™â€žÃ™Å  Ã™Å Ã˜Â·Ã˜Â¨Ã™â€šÃ™â€¡Ã˜Â§ Ã™â€¦Ã˜Â¹ Ã˜Â£Ã™Å  Ã™Æ’Ã™â€žÃ™Å Ã˜Â§Ã™â€  Ã˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯ Ã™â€¦Ã™â€  Ã˜Â¯Ã˜Â§Ã˜Â¨Ã˜Â§ Ã˜Â§Ã™â€žÃ™ÂÃ™Ë†Ã™â€š.\n\n_(Ã˜Â¨Ã˜Â§Ã˜Â´ Ã˜ÂªÃ™â€¦Ã˜Â³Ã˜Â­ Ã™Æ’Ã˜Â§Ã˜Â¹ Ã˜Â§Ã™â€žÃ™â€šÃ™Ë†Ã˜Â§Ã˜Â¹Ã˜Â¯Ã˜Å’ Ã˜ÂµÃ™Å Ã™ÂÃ˜Â· Ã™â€žÃ™Å Ã˜Â§ Ã™Æ’Ã™â€žÃ™â€¦Ã˜Â© "Ã™â€¦Ã˜Â³Ã˜Â­")_'
         );
       } catch (e) {
         console.error("Failed to save rule:", e.message);
-        await msg.reply(BOT_WATERMARK + "âŒ ÙˆÙ‚Ø¹ Ø´ÙŠ Ø®Ø·Ø£ ÙÙ€ Ø§Ù„Ø³ÙŠØ±ÙØ±.");
+        await msg.reply(BOT_WATERMARK + "Ã¢ÂÅ’ Ã™Ë†Ã™â€šÃ˜Â¹ Ã˜Â´Ã™Å  Ã˜Â®Ã˜Â·Ã˜Â£ Ã™ÂÃ™â‚¬ Ã˜Â§Ã™â€žÃ˜Â³Ã™Å Ã˜Â±Ã™ÂÃ˜Â±.");
       }
       return;
     }
@@ -1270,11 +1270,11 @@ client.on("message", async (msg) => {
   }
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Disconnect & Error Handling
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 client.on("disconnected", (reason) => {
-  console.error("[DISCONNECTED]", reason, "â€“ exiting for restart");
+  console.error("[DISCONNECTED]", reason, "Ã¢â‚¬â€œ exiting for restart");
   if (reason === "LOGOUT") {
     try {
       console.log("User logged out. Clearing auth cache...");
@@ -1293,9 +1293,9 @@ client.on("disconnected", (reason) => {
   process.exit(1);
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Graceful Shutdown
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const shutdown = async () => {
   console.log("\n[SHUTDOWN] Closing database and WhatsApp client safely...");
   try {
@@ -1318,7 +1318,7 @@ process.on("uncaughtException", (err) => {
     msg.includes("Execution context was destroyed") ||
     msg.includes("TargetCloseError")
   ) {
-    console.log("Puppeteer context lost â€“ exiting for restart");
+    console.log("Puppeteer context lost Ã¢â‚¬â€œ exiting for restart");
     process.exit(1);
   }
 });
@@ -1330,9 +1330,9 @@ process.on("unhandledRejection", (reason) => {
   console.error("[UNHANDLED REJECTION]", msg);
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Boot
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 (async () => {
   await initDB();
   client.initialize();
@@ -1349,6 +1349,7 @@ process.on("unhandledRejection", (reason) => {
 
 
 module.exports = { pool };
+
 
 
 
