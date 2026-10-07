@@ -124,7 +124,21 @@ pool.on("error", (err) => {
 async function initDB() {
   try {
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS "LeadStatus" (
+      CREATE TABLE IF NOT EXISTS "ProcessedMessage" (
+        id TEXT PRIMARY KEY,
+        status VARCHAR(100),
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "ConversationState" (
+          phone VARCHAR(50) PRIMARY KEY,
+          state JSONB,
+          "updatedAt" TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "LeadStatus" (
         phone VARCHAR(255) PRIMARY KEY,
         status VARCHAR(100) DEFAULT 'NEW',
         is_bot_active BOOLEAN DEFAULT true,
@@ -1174,10 +1188,10 @@ client.on("message", async (msg) => {
           businessRulesText = JSON.stringify(bRules, null, 2);
         } catch(e) {}
 
-        const v2Llm = async (prompt) => {
-          const text = await askAI([{ role: "user", content: prompt }], 800);
-          return { text, tokens: Math.round(prompt.length / 4) + Math.round(String(text).length / 4) };
-        };
+        const v2Llm = async (prompt, opts = {}) => {
+            const text = await askAI([{ role: "user", content: prompt }], 800, 3, opts);
+            return { text, tokens: Math.round(prompt.length / 4) + Math.round(String(text).length / 4) };
+          };
 
         const v2Result = await runTurn(v2Llm, convState, joinedBody, history, businessRulesText);
         
@@ -1239,8 +1253,15 @@ client.on("message", async (msg) => {
       } catch (innerErr) {
         console.error("[AI DEBOUNCE ERR]", innerErr.message);
       } finally {
-        isProcessing.delete(userId);
-      }
+          isProcessing.delete(userId);
+          const processedIds = activeMessageIds.get(userId) || [];
+          if (processedIds.length > 0) {
+              try {
+                  await pool.query(`UPDATE "ProcessedMessage" SET status = 'COMPLETED' WHERE id = ANY($1)`, [processedIds]);
+              } catch(e) { console.error("Failed to mark completed:", e.message); }
+              activeMessageIds.delete(userId);
+          }
+        }
     };
 
     debounceTimers.set(
