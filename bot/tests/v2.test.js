@@ -85,6 +85,7 @@ test('normalizeIntent maps common Darija HVAC terms', () => {
     assert.equal(normalizeIntent('Salam bghit nchri clim'), 'purchase');
     assert.equal(normalizeIntent('bghit nder tarkib'), 'installation');
     assert.equal(normalizeIntent('ma kayberredch, bghit tberid'), 'repair');
+    assert.equal(normalizeIntent('Bghit nchri m3a tarkib CIAT 9000BTU'), 'purchase');
     assert.equal(normalizeIntent('فين المقر ديال DK Clim؟'), null);
     assert.equal(normalizeIntent('DK Clim واش كتخدمو فمراكش؟'), null);
 });
@@ -164,7 +165,7 @@ test('CIAT 9000 price and stock answer never re-asks for budget', () => {
     assert.equal(action.reason, 'purchase_price_booking');
     const reply = render(state, action);
     assert.match(reply, /3800 DH TTC/);
-    assert.match(reply, /1 f stock/);
+    assert.doesNotMatch(reply, /1 f stock|1 en stock/i);
     assert.match(reply, /smiytek.*numra.*adresse/i);
     assert.doesNotMatch(reply, /budget/i);
 });
@@ -289,6 +290,67 @@ test('validator allows catalog prices and rejects a BTU value used as an invente
     const validArabic = await validate(null, 'السعر ٤٣٩٩ درهم.', state, { type: 'answer_question' });
     assert.equal(validArabic.valid, true, JSON.stringify(validArabic));
     assert.equal((await validate(null, 'السعر ٩٠٠٠ درهم.', state, { type: 'answer_question' })).type, 'hard');
+    assert.equal((await validate(null, 'CIAT 9000 BTU kayn (1 f stock).', state, { type: 'answer_question' })).type, 'hard');
+});
+
+test('booking-group free text keeps name and address and asks only for a valid phone', async () => {
+    const state = {
+        intent: 'purchase', stage: 'COLLECT', language: 'ar', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU' },
+        flags: { stock_check: { status: 'checked', available: true, stock_quantity: 1 } },
+        last_bot_question_slot: 'booking_group',
+    };
+    const message = 'othman tazi 066666666 casablanca hay farah';
+    const result = await runTurn(async () => { throw new Error('booking details should use deterministic extraction'); }, state, message, []);
+    assert.equal(result.newState.slots.name, 'othman tazi', JSON.stringify(result.interpretation));
+    assert.equal(result.newState.slots.address, 'casablanca hay farah');
+    assert.equal(result.newState.slots.phone, undefined);
+    assert.equal(result.newState.flags.invalid_phone, true);
+    assert.equal(result.nextAction.slots[0], 'phone');
+    assert.match(result.reply, /10 ar9am.*0612345678/i);
+    assert.doesNotMatch(result.reply, /othman|casablanca|l'adresse|smiytek/i);
+    assert.doesNotMatch(result.reply, /1 f stock|1 en stock/i);
+});
+
+test('valid phone after a booking-group reply keeps collected identity and advances to recap', async () => {
+    const state = {
+        intent: 'purchase', stage: 'COLLECT', language: 'ar', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU', name: 'othman tazi', address: 'casablanca hay farah' },
+        flags: { stock_check: { status: 'checked', available: true, can_preorder: false, stock_quantity: 1 }, invalid_phone: true },
+        last_bot_question_slot: 'phone',
+    };
+    const result = await runTurn(async () => { throw new Error('phone answer should use the local parser'); }, state, '0666666666', []);
+    assert.equal(result.newState.slots.phone, '+212666666666');
+    assert.equal(result.newState.slots.name, 'othman tazi');
+    assert.equal(result.newState.slots.address, 'casablanca hay farah');
+    assert.equal(result.newState.flags.invalid_phone, undefined);
+    assert.equal(result.nextAction.type, 'recap');
+    assert.doesNotMatch(result.reply, /smiytek|lmdina|numra dyal telephone/i);
+});
+
+test('purchase with installation remains a sale and collects installation appointment details', async () => {
+    const result = await runTurn(async (_prompt, options = {}) => options.system?.includes('NLU')
+        ? { text: '{"intent_change":"installation","slot_updates":{}}', tokens: 1 }
+        : { text: '', tokens: 0 },
+    { intent: null, stage: 'INITIAL', language: 'ar', ask_count: 0, slots: {}, flags: {} },
+    'Bghit nchri m3a tarkib CIAT 9000BTU', [], '', {
+        getProductAvailability: async () => ({ status: 'checked', available: true, can_preorder: false, stock_quantity: 1, alternatives: [] }),
+    });
+    assert.equal(result.newState.intent, 'purchase');
+    assert.equal(result.newState.slots.install_mode, 'purchase_with_installation');
+    assert.equal(result.nextAction.reason, 'booking_group');
+    assert.match(result.reply, /499 DH TTC/);
+    assert.doesNotMatch(result.reply, /1 f stock|1 en stock/i);
+    assert.match(result.reply, /nhar li ynasbek l tarkib/i);
+
+    const installationState = {
+        intent: 'purchase', stage: 'COLLECT', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU', install_mode: 'purchase_with_installation', name: 'Othman Tazi', address: 'Rabat Agdal', phone: '+212666666666' },
+        flags: { stock_check: { status: 'checked', available: true } },
+    };
+    assert.equal(planner(installationState, { slot_updates: {} }).slots[0], 'day');
+    installationState.slots.day = '2026-10-10';
+    assert.equal(planner(installationState, { slot_updates: {} }).slots[0], 'time_window_or_hour');
 });
 
 test('inventory records a zero-stock request as PREORDER without decrementing stock', async () => {
@@ -385,7 +447,7 @@ test('purchase booking_group asks only for missing client details and ends with 
     const result = await runTurn(async () => ({ text: '{"slot_updates":{"brand":"CIAT"}}', tokens: 1 }), state, 'CIAT', []);
     assert.equal(result.nextAction.reason, 'booking_group');
     assert.match(result.reply, /\?$/);
-    assert.match(result.reply, /smiytek.*numra dyal telephone.*l adresse/i);
+    assert.match(result.reply, /smiytek.*numra dyal telephone.*lmdina w l7ay/i);
     assert.doesNotMatch(result.reply, /booking group|group name|nhar\/waqt|livraison/i);
     assert.notEqual(result.nextAction.type, 'handoff');
 });

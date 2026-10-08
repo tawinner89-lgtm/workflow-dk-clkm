@@ -51,6 +51,35 @@ function deterministicSlots(message, state) {
     const phone = message.match(/(?:\+?212|00212|0)?[\s().-]*[5-7](?:[\s().-]*\d){8}/);
     if (phone) slots.phone = getMoroccanPhone(phone[0]);
 
+    // When we explicitly asked for the booking details together, accept the
+    // common free-text pattern "Full Name 06xxxxxxxx City Neighborhood".
+    // Keep the phone validator strict; a short number is never saved as valid.
+    if (state.last_bot_question_slot === 'booking_group') {
+        const contactMatch = message.match(/(?:\+212|00212|0)[\s().-]*[5-7](?:[\s().-]*\d){7,8}/i);
+        if (contactMatch) {
+            const validPhone = getMoroccanPhone(contactMatch[0]);
+            if (validPhone) slots.phone = validPhone;
+            else slots._invalidPhone = true;
+
+            const beforePhone = message.slice(0, contactMatch.index)
+                .replace(/^\s*(?:salam|slm|bonjour|salut)[,!.\s]*/i, '')
+                .trim();
+            const afterPhone = message.slice(contactMatch.index + contactMatch[0].length)
+                .replace(/^\s*(?:f|fi|a|à|adresse\s*[:=]?)\s*/i, '')
+                .trim();
+            if (!state.slots?.name && !slots.name && beforePhone) {
+                const name = beforePhone.replace(/[,;]+/g, ' ').replace(/\s+/g, ' ').trim();
+                if (/^[\p{L}][\p{L}'’-]*(?:\s+[\p{L}][\p{L}'’-]*){1,4}$/u.test(name)) slots.name = name;
+            }
+            if (!state.slots?.address && !slots.address && afterPhone && /[\p{L}]/u.test(afterPhone)) {
+                slots.address = afterPhone.replace(/\s+/g, ' ');
+            }
+        }
+    }
+    if (normalizeIntent(message) === 'purchase' && /\b(?:m3a\s+(?:tarkib|installation)|avec\s+(?:installation|pose)|on?\s*r(?:a)?keb|installer|pose\s+comprise)\b/i.test(message)) {
+        slots.install_mode = 'purchase_with_installation';
+    }
+
     // Meta click-to-WhatsApp ads and website forms often prefill a labeled
     // message. Read only explicit label/value lines so this fallback remains
     // safer than guessing a name or address from free text.
@@ -191,13 +220,14 @@ Return EXACTLY this JSON structure:
         if (correctedBtu) localSlots.btu = `${correctedBtu[1]}_BTU`;
     }
     const isBareAffirmation = /^(?:oui|yes|ok|okay|d'accord|wakha|mezian|yallah|sir)[!.\s]*$/iu.test(customerMessage.trim());
-    const simpleMessage = customerMessage.trim().length <= 64 && (
+    const isDeterministicAnswer = Boolean(state.last_bot_question_slot && Object.keys(localSlots).length > 0);
+    const simpleMessage = isDeterministicAnswer || (customerMessage.trim().length <= 64 && (
         /^(salam|slm|marhaba|bonjour|salut|hello|hi)[!.\s]*$/i.test(customerMessage) ||
         (/^(?:salam\s+)?(?:bghit\s+(?:nchri\s+)?clim|bghit\s+nchri)$/i.test(customerMessage.trim())) ||
         localLost ||
         (state.stage === 'RECAP' && isBareAffirmation) ||
         (state.last_bot_question_slot && !/[?؟]/.test(customerMessage) && !localCorrection && Object.keys(localSlots).length === 0)
-    );
+    ));
     let res = { text: '{}', tokens: 0 };
     if (!simpleMessage) {
         try {
@@ -232,7 +262,11 @@ Return EXACTLY this JSON structure:
 
     if (!parsed.slot_updates) parsed.slot_updates = {};
 
+    parsed.phone_invalid = Boolean(localSlots._invalidPhone);
+    delete localSlots._invalidPhone;
     parsed.slot_updates = { ...parsed.slot_updates, ...localSlots };
+    if (localSlots.install_mode === 'purchase_with_installation') parsed.intent_change = 'purchase';
+    if (parsed.slot_updates.phone) parsed.phone_invalid = false;
     if (localSlots.intent) {
         parsed.intent_change = localSlots.intent;
         delete parsed.slot_updates.intent;

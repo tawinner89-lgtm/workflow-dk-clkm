@@ -68,7 +68,11 @@ function planner(state, interp) {
             return { type: 'ask', reason: 'choose_model_variant', slots: ['model_variant'] };
         }
     }
-    const missingRequired = flow.required.filter(s => !state.slots[s]);
+    const requiredSlots = [...flow.required];
+    if (intent === 'purchase' && state.slots.install_mode === 'purchase_with_installation') {
+        requiredSlots.push('day', 'time_window_or_hour');
+    }
+    const missingRequired = requiredSlots.filter(s => !state.slots[s]);
     
     if (missingRequired.length === 0) {
         if (intent === 'job') return { type: 'handoff', reason: 'job_inquiry', slots: [] };

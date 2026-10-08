@@ -9,10 +9,12 @@ function normalizeIntent(raw) {
     if (repairHints.some(hint => clean.includes(hint))) return 'repair';
     const maintenanceHints = ['entretien', 'nettoyage', 'maintenance', 'siyana', 'siyant'];
     if (maintenanceHints.some(hint => clean.includes(hint))) return 'maintenance';
-    const installationHints = ['installation', 'installer', 'montage', 'tarkib', 'rkeb', 'nrakb'];
-    if (installationHints.some(hint => clean.includes(hint))) return 'installation';
+    // An explicit purchase remains the primary intent when installation is
+    // requested as an add-on ("bghit nchri ... m3a tarkib").
     const explicitPurchase = ['achat', 'acheter', 'buy', 'chra', 'chri', 'bghit nchri'].some(hint => clean.includes(hint));
     if (explicitPurchase) return 'purchase';
+    const installationHints = ['installation', 'installer', 'montage', 'tarkib', 'rkeb', 'nrakb'];
+    if (installationHints.some(hint => clean.includes(hint))) return 'installation';
     const productHints = ['climatiseur', 'clim', 'btu', ...business.sales_catalog.brands_in_stock.map(brand => brand.toLowerCase())];
     const hasProductHint = productHints.some(hint => clean.includes(hint));
     if (hasProductHint) return 'purchase';

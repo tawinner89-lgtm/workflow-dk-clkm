@@ -23,6 +23,9 @@ async function validate(llmFn, reply, state, nextAction) {
     const lower = reply.toLowerCase();
 
     if (state.intent === 'purchase') {
+        if (/\b\d+\s*(?:en stock|f\s+stock|في\s+المخزون|units?\s+available|unit[eé]s?\s+en\s+stock)\b/iu.test(reply)) {
+            return { valid: false, reason: 'La quantité exacte en stock est réservée à l’équipe interne.', type: 'hard', tokens };
+        }
         const btuMentions = [...reply.matchAll(/\b(\d[\d\s,.]*)\s*_?\s*btu\b/gi)];
         for (const match of btuMentions) {
             const btu = match[1].replace(/\D/g, '') + '_BTU';

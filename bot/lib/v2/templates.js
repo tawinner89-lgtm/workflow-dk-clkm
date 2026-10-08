@@ -33,6 +33,11 @@ const TEMPLATES = {
             ar: "Chno howa raqm telephone dyalek bach ntwaslo m3ak?",
             arabic: "ما رقم الهاتف الذي يمكننا التواصل معك من خلاله؟"
         },
+        phone_invalid: {
+            fr: "Le numéro reçu semble incomplet. Envoyez un numéro marocain à 10 chiffres, par exemple 0612345678, s'il vous plaît ?",
+            ar: "Raqm telephone li sifti kayban na9es. 3afak sift raqm marocain kamel b 10 ar9am, b7al 0612345678?",
+            arabic: "يبدو أن رقم الهاتف ناقص. أرسل رقماً مغربياً كاملاً من 10 أرقام، مثل 0612345678 من فضلك؟"
+        },
         name: {
             fr: "Quel est votre nom complet, s'il vous plaît ?",
             ar: "Momkin smiytek kamla 3afak?",
@@ -143,6 +148,26 @@ function formatOfferPrice(offer, locale) {
     return `${offer.prix_promo} DH TTC.${installation}`;
 }
 
+function purchaseDetailsQuestion(state, locale) {
+    const needed = ['name', 'phone', 'address'];
+    if (state.slots?.install_mode === 'purchase_with_installation') needed.push('day', 'time_window_or_hour');
+    const missing = needed.filter(slot => !state.slots?.[slot]);
+    if (!missing.length) {
+        if (locale === 'fr') return "Souhaitez-vous confirmer la commande ?";
+        if (locale === 'arabic') return "هل ترغب في تأكيد الطلب؟";
+        return "Wach bghiti nconfirmi lcommande?";
+    }
+    const labels = {
+        fr: { name: 'votre nom complet', phone: 'votre numéro de téléphone', address: 'la ville et le quartier de votre adresse', day: 'le jour souhaité pour l’installation', time_window_or_hour: 'l’heure souhaitée' },
+        arabic: { name: 'اسمك الكامل', phone: 'رقم هاتفك', address: 'المدينة والحي', day: 'اليوم المناسب للتركيب', time_window_or_hour: 'الوقت المناسب' },
+        ar: { name: 'smiytek kamla', phone: 'numra dyal telephone', address: 'lmdina w l7ay dyal l’adresse', day: 'nhar li ynasbek l tarkib', time_window_or_hour: 'lwaqt li ynasbek' },
+    }[locale];
+    const details = missing.map(slot => labels[slot]);
+    if (locale === 'fr') return `Pour finaliser, indiquez ${details.join(', ')} s'il vous plaît.`;
+    if (locale === 'arabic') return `لإتمام الطلب، أرسل ${details.join('، ')} من فضلك.`;
+    return `Bach nkemlo lcommande, momkin tsift lina ${details.join(', ')} 3afak?`;
+}
+
 function render(state, action) {
     const locale = localeFor(state);
     if (action.type === 'close' && action.reason === 'sale_preorder') return TEMPLATES.close.preorder[locale];
@@ -182,25 +207,19 @@ function render(state, action) {
         const offer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
         const stock = state.flags?.stock_check;
         const price = offer ? formatOfferPrice(offer, locale) : '';
-        const missingDetails = ['name', 'phone', 'address'].filter(slot => !state.slots[slot]);
-        const requestedDetails = locale === 'fr'
-            ? missingDetails.map(slot => ({ name: 'votre nom complet', phone: 'votre numéro de téléphone', address: 'votre adresse' })[slot])
-            : locale === 'arabic'
-                ? missingDetails.map(slot => ({ name: 'اسمك الكامل', phone: 'رقم هاتفك', address: 'عنوانك' })[slot])
-                : missingDetails.map(slot => ({ name: 'smiytek kamla', phone: 'numra dyal telephone', address: 'l adresse dyalek' })[slot]);
-        const detailsQuestion = locale === 'fr'
-            ? `Pour finaliser, pouvez-vous nous donner ${requestedDetails.join(', ')} ?`
-            : locale === 'arabic'
-                ? `لإتمام الطلب، هل يمكنك إرسال ${requestedDetails.join('، ')}؟`
-                : `Bach nkemlo lcommande, momkin tsift lina ${requestedDetails.join(', ')} 3afak?`;
+        const detailsQuestion = purchaseDetailsQuestion(state, locale);
+        const installationPrice = business.repair_and_maintenance.tarifs_services.installation;
+        const installDetails = state.slots.install_mode === 'purchase_with_installation' && !offer?.installation_incluse
+            ? (locale === 'fr' ? ` La pose professionnelle est à partir de ${installationPrice} DH TTC, en supplément.` : locale === 'arabic' ? ` التركيب الاحترافي يبدأ من ${installationPrice} درهم شامل الضريبة، ويُحسب بشكل منفصل.` : ` Tarkib professionnel kaybda mn ${installationPrice} DH TTC, zayed 3la taman dyal lclim.`)
+            : '';
         if (stock?.can_preorder) {
             if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU n'est pas en stock local. Nous pouvons le commander sous 24 à 48 h. ${price} ${detailsQuestion}`;
             if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} غير متوفر محلياً. يمكننا طلبه خلال 24 إلى 48 ساعة. ${price} ${detailsQuestion}`;
             return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU daba ma kaynach f stock local, walakin n9edro njibouha f 24-48 sa3a. ${price} ${detailsQuestion}`;
         }
-        if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible${stock?.stock_quantity ? ` (${stock.stock_quantity} en stock)` : ''}. ${price} ${detailsQuestion}`;
-        if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر${stock?.stock_quantity ? ` (${stock.stock_quantity} في المخزون)` : ''}. ${price} ${detailsQuestion}`;
-        return `Salam, ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn${stock?.stock_quantity ? ` (${stock.stock_quantity} f stock)` : ''}. ${price} ${detailsQuestion}`;
+            if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible. ${price}${installDetails} ${detailsQuestion}`;
+            if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر. ${price}${installDetails} ${detailsQuestion}`;
+            return `Salam, ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn. ${price}${installDetails} ${detailsQuestion}`;
     }
     if (action.type === 'ask' && action.slots?.[0] === 'model_variant') {
         const options = getOffers(state.slots.brand, state.slots.btu).map(offer => `${offer.modele} : ${formatOfferPrice(offer, locale)}`);
@@ -208,6 +227,7 @@ function render(state, action) {
         if (locale === 'arabic') return `أي نسخة تفضل: ${options.join('، ')}؟`;
         return `Ina version katfaddel: ${options.join(', ')}?`;
     }
+    if (action.type === 'ask' && action.slots?.[0] === 'phone' && state.flags?.invalid_phone) return TEMPLATES.ask.phone_invalid[locale];
     if (action.type === 'ask' && action.slots?.length === 1) return TEMPLATES.ask[action.slots[0]]?.[locale] || null;
     if (action.type === 'answer_question' && action.reason === 'purchase_price_booking') {
         const offers = getOffers(state.slots.brand, state.slots.btu);
@@ -221,18 +241,18 @@ function render(state, action) {
                 if (locale === 'arabic') return `هذا المكيف غير متوفر محلياً، ويمكن طلبه خلال 24 إلى 48 ساعة. هذه النسخ وأسعارها: ${choices}. أي نسخة تفضل؟`;
                 return `Had lclim daba ma kaynch f stock local, walakin n9edro ntalbouh f 24-48 sa3a. Hado les versions b taman dyalhom: ${choices}. Ina wa7da katfaddel?`;
             }
-            if (locale === 'fr') return `Le modèle ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible (${stock.stock_quantity} en stock). Voici les versions : ${choices}. Quelle version préférez-vous ?`;
-            if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر (${stock.stock_quantity} في المخزون). الاختيارات: ${choices}. أي نسخة تفضل؟`;
-            return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn (${stock.stock_quantity} f stock). 3ndna: ${choices}. Ina modèle katfaddel?`;
+            if (locale === 'fr') return `Le modèle ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible. Voici les versions : ${choices}. Quelle version préférez-vous ?`;
+            if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر. الاختيارات: ${choices}. أي نسخة تفضل؟`;
+            return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn. 3ndna: ${choices}. Ina modèle katfaddel?`;
         }
         if (stock.can_preorder) {
             if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU n'est pas en stock local, mais nous pouvons le commander sous 24 à 48 h. ${formatOfferPrice(offer, locale)} Pour continuer, indiquez votre nom complet, votre téléphone et votre adresse.`;
             if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} غير متوفر محلياً، لكن يمكننا طلبه خلال 24 إلى 48 ساعة. ${formatOfferPrice(offer, locale)} للمتابعة، أرسل اسمك الكامل ورقم هاتفك وعنوانك.`;
             return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU daba 0 f stock local, walakin n9edro njibouh lik f 24-48 sa3a. ${formatOfferPrice(offer, locale)} Bach nkemlo, khasni smiytek kamla, numra w l'adresse.`;
         }
-        if (locale === 'fr') return `Oui, le ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible (${stock.stock_quantity} en stock). ${formatOfferPrice(offer, locale)} Pour finaliser, indiquez votre nom complet, votre téléphone, votre adresse et le jour/heure de livraison souhaités.`;
-        if (locale === 'arabic') return `نعم، ${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر (${stock.stock_quantity} في المخزون). ${formatOfferPrice(offer, locale)} لإتمام الطلب، أرسل اسمك الكامل ورقم هاتفك وعنوانك وموعد التسليم المناسب.`;
-        return `Iyeh, ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn (${stock.stock_quantity} f stock). ${formatOfferPrice(offer, locale)} Bach nkemlo commande, khasni smiytek kamla, numra, l'adresse, w nhar/waqt dyal livraison.`;
+            if (locale === 'fr') return `Oui, le ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible. ${formatOfferPrice(offer, locale)} ${purchaseDetailsQuestion(state, locale)}`;
+            if (locale === 'arabic') return `نعم، ${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر. ${formatOfferPrice(offer, locale)} ${purchaseDetailsQuestion(state, locale)}`;
+            return `Iyeh, ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn. ${formatOfferPrice(offer, locale)} ${purchaseDetailsQuestion(state, locale)}`;
     }
     if (action.type === 'answer_question' && action.reason === 'purchase_product_question') {
         const offer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
@@ -259,14 +279,17 @@ function render(state, action) {
         const offer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
         if (!offer || (!state.flags?.stock_check?.available && !state.flags?.stock_check?.can_preorder) || !offer.prix_promo) return TEMPLATES.handoff[locale];
         const price = formatOfferPrice(offer, locale);
+        const installationSummary = state.slots.install_mode === 'purchase_with_installation' && !offer.installation_incluse
+            ? (locale === 'fr' ? ` Pose professionnelle demandée, à partir de ${business.repair_and_maintenance.tarifs_services.installation} DH TTC en supplément.` : locale === 'arabic' ? ` طلبت التركيب الاحترافي، ويبدأ من ${business.repair_and_maintenance.tarifs_services.installation} درهم شامل الضريبة بشكل منفصل.` : ` Talabti tarkib professionnel li kaybda mn ${business.repair_and_maintenance.tarifs_services.installation} DH TTC zayed.`)
+            : '';
         if (state.flags?.stock_check?.can_preorder) {
-            if (locale === 'fr') return `Récapitulatif : commande spéciale ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU, ${price}, à fournir sous 24 à 48 h. Adresse : ${state.slots.address}. Est-ce que je confirme la commande ?`;
-            if (locale === 'arabic') return `ملخص الطلب الخاص: ${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')}، السعر ${price}، والتوفير خلال 24 إلى 48 ساعة. العنوان: ${state.slots.address}. هل أؤكد الطلب؟`;
-            return `Talab spécial: ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU, ${price}, ghadi njibouh f 24-48 sa3a. L'adresse: ${state.slots.address}. Wach nconfirmi lik?`;
+            if (locale === 'fr') return `Récapitulatif : commande spéciale ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU, ${price}.${installationSummary} À fournir sous 24 à 48 h. Adresse : ${state.slots.address}. Est-ce que je confirme la commande ?`;
+            if (locale === 'arabic') return `ملخص الطلب الخاص: ${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')}، السعر ${price}.${installationSummary} التوفير خلال 24 إلى 48 ساعة. العنوان: ${state.slots.address}. هل أؤكد الطلب؟`;
+            return `Talab spécial: ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU, ${price}.${installationSummary} Ghadi njibouh f 24-48 sa3a. L'adresse: ${state.slots.address}. Wach nconfirmi lik?`;
         }
-        if (locale === 'fr') return `Récapitulatif : ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU. ${price} Client : ${state.slots.name}, téléphone : ${state.slots.phone}, adresse : ${state.slots.address}${state.slots.day ? `, livraison le ${state.slots.day}` : ''}${state.slots.time_window_or_hour ? ` vers ${state.slots.time_window_or_hour}` : ''}. Est-ce que je confirme la commande ?`;
-        if (locale === 'arabic') return `ملخص الطلب: ${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')}. ${price} العميل: ${state.slots.name}، الهاتف: ${state.slots.phone}، العنوان: ${state.slots.address}${state.slots.day ? `، التسليم يوم ${state.slots.day}` : ''}${state.slots.time_window_or_hour ? ` حوالي ${state.slots.time_window_or_hour}` : ''}. هل أؤكد الطلب؟`;
-        return `Talab dyalek: ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU b ${price}. Client: ${state.slots.name}, numra: ${state.slots.phone}, l'adresse: ${state.slots.address}${state.slots.day ? `, livraison nhar ${state.slots.day}` : ''}${state.slots.time_window_or_hour ? ` f ${state.slots.time_window_or_hour}` : ''}. Wach nconfirmi lik?`;
+        if (locale === 'fr') return `Récapitulatif : ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU. ${price}${installationSummary} Client : ${state.slots.name}, téléphone : ${state.slots.phone}, adresse : ${state.slots.address}${state.slots.day ? `, installation le ${state.slots.day}` : ''}${state.slots.time_window_or_hour ? ` vers ${state.slots.time_window_or_hour}` : ''}. Est-ce que je confirme la commande ?`;
+        if (locale === 'arabic') return `ملخص الطلب: ${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')}. ${price}${installationSummary} العميل: ${state.slots.name}، الهاتف: ${state.slots.phone}، العنوان: ${state.slots.address}${state.slots.day ? `، التركيب يوم ${state.slots.day}` : ''}${state.slots.time_window_or_hour ? ` حوالي ${state.slots.time_window_or_hour}` : ''}. هل أؤكد الطلب؟`;
+        return `Talab dyalek: ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU b ${price}.${installationSummary} Client: ${state.slots.name}, numra: ${state.slots.phone}, l'adresse: ${state.slots.address}${state.slots.day ? `, tarkib nhar ${state.slots.day}` : ''}${state.slots.time_window_or_hour ? ` f ${state.slots.time_window_or_hour}` : ''}. Wach nconfirmi lik?`;
     }
     if (action.type === 'recap') {
         if (locale === 'fr') return `Récapitulatif : ${state.intent}. Informations reçues : ${Object.entries(state.slots || {}).map(([key, value]) => `${key} : ${value}`).join(', ')}. Notre équipe vérifiera les disponibilités avant de fixer le rendez-vous.`;

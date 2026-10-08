@@ -1325,6 +1325,26 @@ client.on("message", async (msg) => {
 
         if (v2Result.saleResult?.ok) {
           console.log(`[SALE LOGGED] ${v2Result.newState.slots.brand} ${v2Result.newState.slots.btu} (${v2Result.saleResult.status})`);
+          if (v2Result.newState.slots.install_mode === 'purchase_with_installation') {
+            const installationSlots = {
+              ...v2Result.newState.slots,
+              symptom: `Installation du climatiseur ${v2Result.newState.slots.brand} ${v2Result.newState.slots.btu}`,
+            };
+            const installationResult = await notifyAdminV2(userId, installationSlots, 'installation');
+            if (installationResult.ok) {
+              const installConfirmation = v2Result.newState.language === 'fr'
+                ? " Votre demande d’installation a aussi été transmise à notre équipe."
+                : v2Result.newState.language === 'ar-script'
+                  ? " كما أرسلنا طلب التركيب إلى فريقنا."
+                  : " W talab tarkib tsift l'équipe dyalna bach yns9o m3ak.";
+              reply += installConfirmation;
+            } else {
+              console.error('[PURCHASE INSTALLATION NOT SAVED]', installationResult.reason || installationResult.error || 'unknown');
+              reply = render(v2Result.newState, { type: 'handoff', reason: 'installation_booking_failed', slots: [] });
+              v2Result.nextAction = { type: 'handoff', reason: 'installation_booking_failed', slots: [] };
+              v2Result.newState.stage = 'HANDOFF';
+            }
+          }
         }
 
                 if (!reply || reply.trim() === "") {

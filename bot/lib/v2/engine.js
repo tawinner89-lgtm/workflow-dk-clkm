@@ -28,6 +28,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="", ser
     const interp=await interpret(llmFn, state, sanitized);
     turnTokens+=interp._tokens||0;
     if (interp.detected_language) state.language=interp.detected_language;
+    if (interp.phone_invalid) state.flags.invalid_phone = true;
     if (interp.is_lost) state.flags.recommendation_mode = true;
     if (interp.intent_change) state.intent=normalizeIntent(interp.intent_change) || state.intent;
     if (interp.is_correction && Array.isArray(interp.clear_slots)) {
@@ -51,6 +52,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="", ser
                 if(!isCorr) continue;
             }
             state.slots[k]=v;
+            if (k === 'phone') delete state.flags.invalid_phone;
         }
     }
     if (oldBrand !== state.slots.brand || oldBtu !== state.slots.btu) {
