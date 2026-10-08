@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const { resolveDate, checkBusinessHours } = require('../lib/v2/dates');
 const { normalizeIntent } = require('../lib/v2/intent');
 const { planner } = require('../lib/v2/planner');
@@ -43,6 +44,23 @@ test('project source and config files are UTF-8 without BOM or mojibake', () => 
     }
 });
 
+test('all tracked JavaScript source files parse without syntax errors', () => {
+    const root = path.resolve(__dirname, '..', '..');
+    const files = [];
+    const visit = directory => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const fullPath = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                if (!['node_modules', '.git', '.next'].includes(entry.name)) visit(fullPath);
+            } else if (/\.(?:js|cjs)$/.test(entry.name)) files.push(fullPath);
+        }
+    };
+    visit(root);
+    for (const file of files) {
+        assert.doesNotThrow(() => new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file }), file);
+    }
+});
+
 test('resolveDate handles tomorrow and Darija weekdays', () => {
     const now = new Date('2026-10-07T12:00:00.000Z'); // Wednesday in Casablanca
     assert.equal(resolveDate('demain', now), '2026-10-08');
@@ -51,6 +69,7 @@ test('resolveDate handles tomorrow and Darija weekdays', () => {
     assert.equal(resolveDate('غدا', now), '2026-10-08');
     assert.equal(resolveDate('l3chiya', now), '2026-10-07');
     assert.equal(resolveDate('14/10', now), '2026-10-14');
+    assert.equal(resolveDate('maybe next time', now), null);
 });
 
 test('checkBusinessHours recognizes half hours and afternoon expressions', () => {
@@ -66,6 +85,8 @@ test('normalizeIntent maps common Darija HVAC terms', () => {
     assert.equal(normalizeIntent('Salam bghit nchri clim'), 'purchase');
     assert.equal(normalizeIntent('bghit nder tarkib'), 'installation');
     assert.equal(normalizeIntent('ma kayberredch, bghit tberid'), 'repair');
+    assert.equal(normalizeIntent('فين المقر ديال DK Clim؟'), null);
+    assert.equal(normalizeIntent('DK Clim واش كتخدمو فمراكش؟'), null);
 });
 
 test('Moroccan contact phone accepts national numbers and rejects WhatsApp IDs', () => {
@@ -185,12 +206,36 @@ test('company inquiry with j\'aimerais is normalized and recognized', async () =
     assert.equal(result.question_asked, 'company');
 });
 
-test('company reply does not restrict DK Clim service to Casablanca', () => {
+test('headquarters questions are recognized and answered with Casablanca plus nationwide service', async () => {
+    const result = await interpret(async () => ({ text: '{"slot_updates":{},"question_asked":"price"}', tokens: 0 }), {
+        slots: {}, intent: null, stage: 'INITIAL', last_bot_question_slot: null
+    }, 'Fin kayn siège dyalkom?');
+    assert.equal(result.question_asked, 'company');
     const reply = render({ language: 'fr' }, { type: 'answer_question', slots: ['company'] });
-    assert.doesNotMatch(reply, /à Casablanca|dans la région de Casablanca/i);
-    assert.match(reply, /votre ville/i);
-    assert.match(WRITER_SYSTEM_PROMPT, /not restricted to Casablanca/i);
-    assert.match(WRITER_SYSTEM_PROMPT, /any city/i);
+    assert.match(reply, /siège principal.*Casablanca/i);
+    assert.match(reply, /partout au Maroc/i);
+    assert.match(WRITER_SYSTEM_PROMPT, /headquarters\/main office is in Casablanca/i);
+    assert.match(WRITER_SYSTEM_PROMPT, /throughout Morocco/i);
+    assert.match(WRITER_SYSTEM_PROMPT, /city and neighborhood/i);
+    assert.match(WRITER_SYSTEM_PROMPT, /Partout au Maroc/i);
+    assert.match(render({ language: 'ar' }, { type: 'answer_question', slots: ['company'] }), /Casablanca/);
+    assert.match(render({ language: 'ar-script' }, { type: 'answer_question', slots: ['company'] }), /الدار البيضاء/);
+
+    const arabicQuestion = await interpret(async () => ({ text: '{"intent_change":"purchase","question_asked":"availability","slot_updates":{}}', tokens: 0 }), {
+        slots: {}, intent: null, stage: 'INITIAL', last_bot_question_slot: null
+    }, 'فين المقر ديال DK Clim؟ واش كتخدمو فمراكش؟');
+    assert.equal(arabicQuestion.question_asked, 'company');
+    assert.equal(arabicQuestion.intent_change, null);
+    assert.equal(arabicQuestion.detected_language, 'ar-script');
+});
+
+test('address collection welcomes customers from every city', () => {
+    const frenchPrompt = render({ language: 'fr' }, { type: 'ask', reason: 'collect_info', slots: ['address'] });
+    const arabicPrompt = render({ language: 'ar-script' }, { type: 'ask', reason: 'collect_info', slots: ['address'] });
+    assert.match(frenchPrompt, /ville et le quartier/i);
+    assert.doesNotMatch(frenchPrompt, /casablanca/i);
+    assert.match(arabicPrompt, /المدينة والحي/);
+    assert.doesNotMatch(arabicPrompt, /الدار البيضاء/);
 });
 
 test('booking asks never expose hallucinated booking-group fields', async () => {
@@ -265,7 +310,7 @@ test('inventory records a zero-stock request as PREORDER without decrementing st
     assert.equal(result.reason, 'PREORDER');
     assert.equal(result.status, 'PREORDER');
     assert.equal(calls.some(call => call.values?.includes('PREORDER')), true);
-    assert.match(calls.find(call => call.values?.includes('PREORDER')).values.at(-1), /Commande spéciale 24-48h/);
+    assert.match(calls.find(call => call.values?.includes('PREORDER')).values[5], /Commande spéciale 24-48h/);
     assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
     assert.equal(calls.at(-1).sql, 'RELEASE');
 });
@@ -288,7 +333,7 @@ test('confirmed sale decrements stock and writes CONFIRMED sales log in one tran
     assert.equal(calls[0].sql, 'BEGIN');
     assert.match(calls.find(call => call.sql.includes('UPDATE "Inventory"')).sql, /stock_quantity > 0/);
     const saleInsert = calls.find(call => call.sql.includes('INSERT INTO "SalesLog"'));
-    assert.deepEqual(saleInsert.values, ['Carrier', '9000_BTU', 'Test Client', '+212612345678', 'CONFIRMED', 'Prix catalogue: 4399 DH']);
+    assert.deepEqual(saleInsert.values, ['Carrier', '9000_BTU', 'Test Client', '+212612345678', 'CONFIRMED', 'Prix catalogue: 4399 DH', null]);
     assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
     assert.equal(calls.at(-1).sql, 'RELEASE');
 });
@@ -301,6 +346,27 @@ test('availability distinguishes a zero quantity as eligible for preorder', asyn
     assert.equal(result.available, false);
     assert.equal(result.can_preorder, true);
     assert.equal(result.stock_quantity, 0);
+});
+
+test('replayed confirmed sale does not decrement stock twice', async () => {
+    const calls = [];
+    const fakePool = {
+        connect: async () => ({
+            query: async (sql, values) => {
+                calls.push({ sql, values });
+                if (sql.includes('INSERT INTO "SaleSync"')) return { rowCount: 0, rows: [] };
+                if (sql.includes('SELECT status FROM "SalesLog"')) return { rowCount: 1, rows: [{ status: 'CONFIRMED' }] };
+                return { rowCount: 0, rows: [] };
+            },
+            release: () => calls.push({ sql: 'RELEASE' }),
+        }),
+    };
+    const inventory = createInventoryService(fakePool);
+    const result = await inventory.confirmSaleAndUpdateStock('Test Client', '+212612345678', 'Carrier', '9000_BTU', 4399, 'msg-hash');
+    assert.deepEqual(result, { ok: true, stockUpdated: true, status: 'CONFIRMED', duplicate: true });
+    assert.equal(calls.some(call => call.sql.includes('UPDATE "Inventory"')), false);
+    assert.equal(calls.some(call => call.sql.includes('INSERT INTO "SalesLog"')), false);
+    assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
 });
 
 test('planner groups remaining booking details into one booking_group ask', () => {
@@ -330,6 +396,75 @@ test('purchase message with a brand but no numeric BTU asks for BTU instead of h
     assert.equal(result.nextAction.type, 'ask');
     assert.equal(result.nextAction.slots[0], 'btu');
     assert.match(result.reply, /\?/);
+});
+
+test('labeled click-to-WhatsApp ad form text deterministically extracts its lead fields', async () => {
+    const formMessage = [
+        'Nom complet: Salma Client',
+        'Téléphone: 0612345678',
+        'Adresse complète: Rabat, Agdal',
+        'Type de service: Achat climatiseur',
+        'Marque: CIAT',
+        'Puissance: 9000 BTU',
+        'Budget: 4500 DH',
+    ].join('\n');
+    const result = await interpret(async () => ({ text: '{"slot_updates":{},"detected_language":"fr"}', tokens: 1 }), { slots: {}, stage: 'INITIAL' }, formMessage);
+    assert.equal(result.intent_change, 'purchase');
+    assert.equal(result.slot_updates.name, 'Salma Client');
+    assert.equal(result.slot_updates.phone, '+212612345678');
+    assert.equal(result.slot_updates.address, 'Rabat, Agdal');
+    assert.equal(result.slot_updates.brand, 'CIAT');
+    assert.equal(result.slot_updates.btu, '9000_BTU');
+    assert.equal(result.slot_updates.budget, 4500);
+
+    const fullLead = await runTurn(async (_prompt, options = {}) => options.system?.includes('NLU')
+        ? { text: '{"slot_updates":{},"detected_language":"fr"}', tokens: 1 }
+        : { text: 'Votre commande CIAT 9000 BTU est prête à être enregistrée à 3800 DH TTC. Cliente : Salma Client, téléphone : +212612345678, adresse : Rabat, Agdal. Souhaitez-vous que je finalise ?', tokens: 1 },
+    { intent: null, stage: 'INITIAL', language: 'fr', slots: {}, flags: {}, ask_count: 0 }, formMessage, [], '', {
+        getProductAvailability: async () => ({ status: 'checked', available: true, can_preorder: false, stock_quantity: 2, alternatives: [] }),
+    });
+    assert.equal(fullLead.newState.intent, 'purchase');
+    assert.equal(fullLead.newState.slots.name, 'Salma Client');
+    assert.equal(fullLead.newState.slots.address, 'Rabat, Agdal');
+    assert.equal(fullLead.nextAction.type, 'recap');
+    assert.match(fullLead.reply, /3800 DH TTC/);
+    assert.match(fullLead.reply, /Est-ce que je confirme/i);
+    assert.equal(fullLead.validatorResult.valid, true);
+});
+
+test('recap validator allows asking for confirmation but blocks a false confirmed claim', async () => {
+    const state = { intent: 'purchase', slots: { brand: 'CIAT', btu: '9000_BTU' }, flags: {} };
+    assert.equal((await validate(null, 'Récapitulatif de la commande CIAT. Est-ce que je confirme ?', state, { type: 'recap' })).valid, true);
+    const falseClaim = await validate(null, 'Votre commande est confirmée.', state, { type: 'recap' });
+    assert.equal(falseClaim.valid, false);
+});
+
+test('handoff state resumes on a new greeting or client information instead of going silent', async () => {
+    const greetingState = { intent: null, stage: 'HANDOFF', language: 'fr', slots: {}, flags: {}, ask_count: 0 };
+    const greeting = await runTurn(async () => { throw new Error('simple greeting should not call provider'); }, greetingState, 'Salam', []);
+    assert.notEqual(greeting.nextAction.type, 'silent');
+    assert.match(greeting.reply, /acheter|techri|réparation|tarkib/i);
+
+    const followup = planner(
+        { intent: 'purchase', stage: 'HANDOFF', slots: {}, flags: {}, ask_count: 0 },
+        { slot_updates: {}, intent_change: null, question_asked: null, greeting: false }
+    );
+    assert.equal(followup.type, 'handoff_followup');
+    assert.match(render({ language: 'ar' }, followup), /deja 3nd l'équipe/i);
+});
+
+test('a price question after handoff is answered through the active purchase flow', async () => {
+    const state = {
+        intent: 'purchase', stage: 'HANDOFF', language: 'ar', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU' },
+        flags: { stock_check: { status: 'checked', available: true, stock_quantity: 1 } },
+    };
+    const result = await runTurn(async () => ({ text: '{"slot_updates":{},"question_asked":"price","detected_language":"ar"}', tokens: 1 }), state, 'bch7al?', [], '', {
+        getProductAvailability: async () => ({ status: 'checked', available: true, can_preorder: false, stock_quantity: 1, alternatives: [] }),
+    });
+    assert.notEqual(result.nextAction.type, 'silent');
+    assert.match(result.reply, /3800/);
+    assert.equal(result.newState.stage, 'COLLECT');
 });
 
 test('planner still asks the repair symptom before grouping booking details', () => {

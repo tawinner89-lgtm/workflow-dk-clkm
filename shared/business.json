@@ -1,4 +1,9 @@
 {
+  "business_identity": {
+    "headquarters": "Casablanca, Maroc",
+    "service_area": "Partout au Maroc",
+    "location_guidance": "Siège principal à Casablanca. DK Clim propose ses services de vente, installation, entretien et réparation partout au Maroc. Pour créer un ticket, demander la ville et le quartier du client sans supposer Casablanca."
+  },
   "sales_catalog": {
     "brands_in_stock": [
       "CIAT",

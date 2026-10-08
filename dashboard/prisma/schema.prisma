@@ -94,6 +94,7 @@ model SalesLog {
   customer_phone String?
   status         String?  @default("PENDING")
   notes          String?
+  syncHash       String?  @unique
 
   @@index([status])
   @@map("SalesLog")

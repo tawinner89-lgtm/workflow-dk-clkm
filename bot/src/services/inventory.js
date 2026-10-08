@@ -31,7 +31,7 @@ function createInventoryService(dbPool) {
     }
   }
 
-  async function createSale(brand, btu, customerName, customerPhone, price, saleStatus) {
+  async function createSale(brand, btu, customerName, customerPhone, price, saleStatus, idempotencyKey = null) {
     let client;
     const normalizedBtu = normalizeBtu(btu);
     if (!brand || !normalizedBtu) {
@@ -40,6 +40,24 @@ function createInventoryService(dbPool) {
     try {
       client = await dbPool.connect();
       await client.query('BEGIN');
+      if (idempotencyKey) {
+        const reservation = await client.query(
+          `INSERT INTO "SaleSync" (hash, "createdAt") VALUES ($1, NOW())
+           ON CONFLICT (hash) DO NOTHING RETURNING hash`,
+          [idempotencyKey]
+        );
+        if (reservation.rowCount === 0) {
+          const existing = await client.query(
+            `SELECT status FROM "SalesLog" WHERE "syncHash" = $1 LIMIT 1`,
+            [idempotencyKey]
+          );
+          await client.query('COMMIT');
+          if (existing.rows.length) {
+            return { ok: true, stockUpdated: existing.rows[0].status === 'CONFIRMED', status: existing.rows[0].status, duplicate: true };
+          }
+          return { ok: false, stockUpdated: false, reason: 'DUPLICATE_IN_PROGRESS' };
+        }
+      }
       const update = await client.query(
         `WITH candidate AS (
            SELECT id FROM "Inventory" WHERE brand ILIKE $1 AND UPPER(btu) = UPPER($2)
@@ -54,8 +72,8 @@ function createInventoryService(dbPool) {
       );
       if (update.rowCount > 0) {
         await client.query(
-          `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes) VALUES ($1, $2, $3, $4, $5, $6)`,
-          [brand, normalizedBtu, customerName || null, customerPhone || null, saleStatus, price ? `Prix catalogue: ${price} DH` : null]
+          `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes, "syncHash") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [brand, normalizedBtu, customerName || null, customerPhone || null, saleStatus, price ? `Prix catalogue: ${price} DH` : null, idempotencyKey]
         );
         await client.query('COMMIT');
         return { ok: true, stockUpdated: true, status: saleStatus };
@@ -67,8 +85,8 @@ function createInventoryService(dbPool) {
       );
       const reason = check.rows.length === 0 || Number(check.rows[0].stock_quantity) <= 0 ? 'PREORDER' : 'NOT_FOUND';
       await client.query(
-        `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [brand, normalizedBtu, customerName || null, customerPhone || null, reason, price ? `Commande spéciale 24-48h; prix catalogue: ${price} DH` : 'Commande spéciale 24-48h']
+        `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes, "syncHash") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [brand, normalizedBtu, customerName || null, customerPhone || null, reason, price ? `Commande spéciale 24-48h; prix catalogue: ${price} DH` : 'Commande spéciale 24-48h', idempotencyKey]
       );
       await client.query('COMMIT');
       return { ok: reason === 'PREORDER', stockUpdated: false, status: reason, reason };
@@ -83,8 +101,8 @@ function createInventoryService(dbPool) {
 
   // Bot-originated sale is finalized only after the customer confirms the recap.
   // Stock decrement and SalesLog insert share one transaction.
-  async function confirmSaleAndUpdateStock(clientName, clientPhone, model, btu, price = null) {
-    return createSale(model, btu, clientName, clientPhone, price, 'CONFIRMED');
+  async function confirmSaleAndUpdateStock(clientName, clientPhone, model, btu, price = null, idempotencyKey = null) {
+    return createSale(model, btu, clientName, clientPhone, price, 'CONFIRMED', idempotencyKey);
   }
 
   // Keep the pending-sale API for existing callers that require dashboard approval.

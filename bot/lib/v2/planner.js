@@ -5,7 +5,17 @@ const { getOffer, getOffers } = require('./templates');
 
 function planner(state, interp) {
     if (interp.urgency) return { type: 'handoff', reason: 'urgency', slots: [] };
-    if (state.stage === 'HANDOFF') return { type: 'silent', reason: 'already_handoff', slots: [] };
+    // A handoff is not a dead end: customers often send the missing details or
+    // ask a follow-up after seeing the escalation reply. Resume when there is
+    // new information; acknowledge a no-op follow-up instead of going silent.
+    if (state.stage === 'HANDOFF') {
+        const hasNewInput = Boolean(
+            interp.intent_change || interp.question_asked || interp.greeting ||
+            Object.keys(interp.slot_updates || {}).length
+        );
+        if (hasNewInput) state.stage = state.intent ? 'COLLECT' : 'INITIAL';
+        else return { type: 'handoff_followup', reason: 'handoff_followup', slots: [] };
+    }
     if (interp.human_requested || interp.complaint) return { type: 'handoff', reason: 'human_complaint', slots: [] };
     if (interp.intent_change) state.intent = normalizeIntent(interp.intent_change);
     if (interp.question_asked) {

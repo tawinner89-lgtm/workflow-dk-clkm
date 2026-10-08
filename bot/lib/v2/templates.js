@@ -24,9 +24,9 @@ const TEMPLATES = {
             arabic: "ما الميزانية التي خصصتها للمكيف؟"
         },
         address: {
-            fr: "Quelle est votre adresse complète à Casablanca ?",
+            fr: "Quelle est votre adresse complète, avec la ville et le quartier ?",
             ar: "Fin jat l'adresse dyalek b dabt (lmdina w l7ay)?",
-            arabic: "ما عنوانك الكامل في الدار البيضاء؟"
+            arabic: "ما عنوانك الكامل، مع ذكر المدينة والحي؟"
         },
         phone: {
             fr: "Quel numéro de téléphone pouvons-nous utiliser pour vous joindre ?",
@@ -78,6 +78,11 @@ const TEMPLATES = {
         fr: "Je transmets votre demande à notre équipe DK Clim, qui vous recontactera.",
         ar: "Ghadi n7awel talab dyalek l'équipe DK Clim bach y3ayto lik.",
         arabic: "سأحيل طلبك إلى فريق DK Clim ليتواصل معك."
+    },
+    handoff_followup: {
+        fr: "Votre demande est déjà transmise à notre équipe. Vous pouvez m'envoyer toute information complémentaire ici.",
+        ar: "Talab dyalek deja 3nd l'équipe DK Clim. Ila bghiti tzid chi ma3louma, sift-ha lia hna.",
+        arabic: "تمت إحالة طلبك إلى فريق DK Clim. يمكنك إرسال أي معلومات إضافية هنا."
     },
     urgency: {
         fr: "Votre situation semble urgente. Je préviens notre équipe pour qu'elle vous contacte rapidement.",
@@ -143,6 +148,7 @@ function render(state, action) {
     if (action.type === 'close' && action.reason === 'sale_preorder') return TEMPLATES.close.preorder[locale];
     if (action.type === 'close' && ['sale_pending', 'sale_confirmed', 'booking_confirmed', 'confirmed'].includes(action.reason)) return TEMPLATES.close.confirmed[locale];
     if (action.type === 'silent') return '';
+    if (action.type === 'handoff_followup') return TEMPLATES.handoff_followup[locale];
     if (action.type === 'handoff') return TEMPLATES.handoff[locale];
     if (action.type === 'urgency') return TEMPLATES.urgency[locale];
     if (action.type === 'media_fallback') return TEMPLATES.media_fallback[locale];
@@ -245,9 +251,9 @@ function render(state, action) {
         return render(state, { type: 'ask', reason: 'alternative_brand', slots: ['brand'] });
     }
     if (action.type === 'answer_question' && action.slots?.[0] === 'company') {
-        if (locale === 'fr') return "DK Clim accompagne ses clients pour la vente, l'installation, l'entretien et la réparation de climatiseurs. Indiquez-nous votre ville afin que notre équipe vérifie la disponibilité du service. Quelle information souhaitez-vous connaître ?";
-        if (locale === 'arabic') return "تقدم DK Clim خدمات بيع المكيفات وتركيبها وصيانتها وإصلاحها. أخبرنا بمدينتك ليتحقق فريقنا من توفر الخدمة. ما المعلومات التي ترغب في معرفتها؟";
-        return "DK Clim kat3awn lclients f chra, tarkib, entretien w siyana dyal lclim. Goul lina smit lmdina bach l'equipe t2aked lik wach service kayn tmak. Chno lma3louma li bghiti t3ref?";
+        if (locale === 'fr') return "Le siège principal de DK Clim est à Casablanca. Nous proposons la vente, l'installation, l'entretien et la réparation de climatiseurs partout au Maroc. Quelle information souhaitez-vous connaître ?";
+        if (locale === 'arabic') return "المقر الرئيسي لشركة DK Clim في الدار البيضاء، ونقدم خدمات بيع المكيفات وتركيبها وصيانتها وإصلاحها في جميع أنحاء المغرب. ما المعلومات التي ترغب في معرفتها؟";
+        return "L siège principal dyal DK Clim kayn f Casablanca, w kan9edmo chra, tarkib, entretien w siyana dyal lclim f jami3 lmaghrib. Chno lma3louma li bghiti t3ref?";
     }
     if (action.type === 'recap' && state.intent === 'purchase') {
         const offer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);

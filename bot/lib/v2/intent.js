@@ -3,6 +3,8 @@ const business = require('../../../shared/business.json');
 function normalizeIntent(raw) {
     if (!raw) return null;
     let clean = raw.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const locationOnly = /(?:\bwhere\s+(?:are\s+you|is\s+dk\s+clim)|\bheadquarters\b|\b(?:votre|dk\s+clim|l'entreprise)\s+(?:siege|adresse)\b|\bou\s+(?:se\s+trouve|etes-vous|est\s+situe)|\bquelle\s+ville\b|\bfin\s+(?:kayn|kayna)\b|\bsiege\s+dyalkom\b|\bl\s*['’]?adresse\s+dyal(?:kom|dk\s+clim)\b|\b(?:wach|wash)\b.{0,35}\b(?:katkhadmo|katkhdmo|katdirou|kat3amlo)\b.{0,30}\b(?:f|fi|a)\s+[\p{L}]+|\bintervenez-vous\b.{0,30}\b(?:a|dans|sur)\b|\bservices?\s+(?:a|dans|sur)\b|فين|أين|مقر|عنوانكم|واش.{0,35}(?:كتخدمو|تخدمون|كتديرو|تدخلوا).{0,30}(?:ف|في))/iu.test(clean);
+    if (locationOnly) return null;
     const repairHints = ['panne', 'kharb', 'khaser', 'khasra', 'mkhaser', 'mkhassar', 'makhdamch', 'ma kaykhdemch', 'ne refroidit pas', 'refroidit pas', 'ma kayberredch', 'tberid', 'fuite', 'bruit', 'depannage', 'reparation', 'sla7'];
     if (repairHints.some(hint => clean.includes(hint))) return 'repair';
     const maintenanceHints = ['entretien', 'nettoyage', 'maintenance', 'siyana', 'siyant'];

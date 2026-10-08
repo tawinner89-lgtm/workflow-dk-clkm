@@ -46,8 +46,9 @@ async function validate(llmFn, reply, state, nextAction) {
     }
 
     if (nextAction.type === 'recap') {
-        if (lower.includes('confirme') || lower.includes('programme') || lower.includes('technicien passera') || lower.includes('garantie')) {
-            return { valid: false, reason: "Banned words for recap (confirme/programme).", type: 'soft', tokens };
+        const prematureBookingClaim = /\b(?:rendez-vous|commande|intervention|visite)\s+(?:est\s+)?(?:confirm[ée]e?|programm[ée]e?)\b|\b(?:votre\s+)?technicien\s+passera\b|\bgarantie\b/iu;
+        if (prematureBookingClaim.test(reply)) {
+            return { valid: false, reason: "Le message annonce une confirmation ou une garantie avant validation.", type: 'soft', tokens };
         }
     }
 

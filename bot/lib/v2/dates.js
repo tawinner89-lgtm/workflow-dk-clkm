@@ -23,14 +23,15 @@ function resolveDate(text, now = new Date()) {
     }
     if (/\b(apres demain|apres-demain|after tomorrow)\b/.test(txt) || txt.includes('بعد غد')) base.setUTCDate(base.getUTCDate() + 2);
     else if (/\b(demain|tomorrow|gheda|ghdda|ghedwa)\b/.test(txt) || /غداً|غدا|غدًا/.test(txt)) base.setUTCDate(base.getUTCDate() + 1);
-    else if (!/\b(aujourdhui|today|lyoum|ce soir|sbah|sabah|l3chiya|3chiya)\b/.test(txt) && !txt.includes('اليوم')) {
+    else if (/\b(aujourdhui|today|lyoum|ce soir|sbah|sabah|l3chiya|3chiya)\b/.test(txt) || txt.includes('اليوم')) {
+        return base.toISOString().slice(0, 10);
+    } else {
         const days = { dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6, ahad: 0, tnin: 1, tlat: 2, larb: 3, khemis: 4, jemaa: 5, sebt: 6 };
         const weekday = Object.entries(days).find(([day]) => new RegExp(`\\b${day}\\b`).test(txt));
-        if (weekday) {
-            let diff = weekday[1] - base.getUTCDay();
-            if (diff <= 0) diff += 7;
-            base.setUTCDate(base.getUTCDate() + diff);
-        }
+        if (!weekday) return null;
+        let diff = weekday[1] - base.getUTCDay();
+        if (diff <= 0) diff += 7;
+        base.setUTCDate(base.getUTCDate() + diff);
     }
     return base.toISOString().slice(0, 10);
 }

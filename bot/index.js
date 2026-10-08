@@ -133,12 +133,22 @@ async function initDB() {
       );
     `);
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS "SaleSync" (
+        hash TEXT PRIMARY KEY,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "Inventory" (
         id SERIAL PRIMARY KEY,
         brand VARCHAR(50),
         btu VARCHAR(50),
         stock_quantity INT
       );
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "Inventory_brand_btu_key"
+      ON "Inventory" (brand, btu);
     `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "SalesLog" (
@@ -153,6 +163,8 @@ async function initDB() {
       );
     `);
     await pool.query(`ALTER TABLE "SalesLog" ADD COLUMN IF NOT EXISTS notes TEXT`);
+    await pool.query(`ALTER TABLE "SalesLog" ADD COLUMN IF NOT EXISTS "syncHash" TEXT`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS "SalesLog_syncHash_key" ON "SalesLog" ("syncHash")`);
 
     // Keep bot writes compatible with the dashboard schema when a deployment
     // starts before the Prisma migration has been applied. These are additive
@@ -793,7 +805,13 @@ async function notifyAdminV2(userId, slots, intent) {
     }
   } else {
     console.warn(`[NO AVAILABLE TECHNICIAN] ${intervention.reference}; admin assignment required`);
-    await notifyHandoff(userId, 'no_available_technician', intervention.reference);
+    // The booking already exists in the dashboard. Pass its reference so the
+    // handoff notifier alerts the team without inserting a duplicate row.
+    await notifyHandoff(userId, 'no_available_technician', intervention.reference, {
+      intent,
+      slots,
+      reference: intervention.reference,
+    });
   }
   return result;
 }
@@ -1286,7 +1304,11 @@ client.on("message", async (msg) => {
             return askAI(messages, 800, 3, opts);
           };
 
-        const v2Result = await runTurn(v2Llm, convState, joinedBody, history, BUSINESS_RULES_TEXT);
+        const lastMessageId = (activeMessageIds.get(userId) || []).at(-1);
+        const saleIdempotencyKey = lastMessageId
+          ? crypto.createHash('sha256').update(`${userId}:${lastMessageId}`).digest('hex')
+          : null;
+        const v2Result = await runTurn(v2Llm, convState, joinedBody, history, BUSINESS_RULES_TEXT, { saleIdempotencyKey });
         
         
 

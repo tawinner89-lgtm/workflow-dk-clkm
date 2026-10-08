@@ -17,6 +17,8 @@ function clean(val) {
 async function runTurn(llmFn, state, customerMessage, history, rulesText="", services = {}) {
     state.slots ||= {};
     state.flags ||= {};
+    const lookupAvailability = services.getProductAvailability || getProductAvailability;
+    const loadStock = services.getCurrentStock || getCurrentStock;
     let turnTokens=0;
     const prevStage=state.stage;
     let sanitized=customerMessage
@@ -57,7 +59,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="", ser
     }
     if (state.intent === 'purchase' && state.flags.recommendation_mode && !state.slots.brand && state.slots.btu && state.slots.budget) {
         const budget = Number(String(state.slots.budget).replace(/\D/g, ''));
-        const stockRows = await getCurrentStock();
+        const stockRows = await loadStock();
         const candidates = business.sales_catalog.promotions_completes
             .filter(offer => offer.btu.toUpperCase() === String(state.slots.btu).toUpperCase() && Number(offer.prix_promo) <= budget)
             .map(offer => ({ brand: offer.brand, btu: offer.btu, modele: offer.modele, price: Number(offer.prix_promo), stock: stockRows.find(row => row.brand.toLowerCase() === offer.brand.toLowerCase() && row.btu.toUpperCase() === offer.btu.toUpperCase())?.stock_quantity || 0 }))
@@ -80,7 +82,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="", ser
     if (interp.urgency) state.flags.urgency=true;
     if (interp.closing) state.flags.closing=true;
     if (state.intent === 'purchase' && state.slots.brand && state.slots.btu && !state.flags.stock_check) {
-        state.flags.stock_check = await getProductAvailability(state.slots.brand, state.slots.btu);
+        state.flags.stock_check = await lookupAvailability(state.slots.brand, state.slots.btu);
         if (state.flags.stock_check.status === 'checked') {
             state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
         }
@@ -96,18 +98,18 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="", ser
         } else if (!state.flags.sale_recorded) {
             const saleOffer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
             const confirmSale = services.confirmSaleAndUpdateStock || confirmSaleAndUpdateStock;
-            saleResult = await confirmSale(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
+            saleResult = await confirmSale(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo, services.saleIdempotencyKey);
             if (saleResult.ok) {
                 state.flags.sale_recorded = true;
                 action = { type: 'close', reason: saleResult.status === 'PREORDER' ? 'sale_preorder' : 'sale_confirmed', slots: [] };
             } else if (saleResult.reason === 'OUT_OF_STOCK') {
-                state.flags.stock_check = await getProductAvailability(state.slots.brand, state.slots.btu);
+                state.flags.stock_check = await lookupAvailability(state.slots.brand, state.slots.btu);
                 if (state.flags.stock_check.status === 'checked') {
                     state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
                 }
                 if (state.flags.stock_check.can_preorder) {
                     const confirmSale = services.confirmSaleAndUpdateStock || confirmSaleAndUpdateStock;
-                    saleResult = await confirmSale(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
+                    saleResult = await confirmSale(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo, services.saleIdempotencyKey);
                     if (saleResult.ok) { state.flags.sale_recorded = true; action = { type: 'close', reason: 'sale_preorder', slots: [] }; }
                     else action = { type: 'handoff', reason: 'sale_record_failed', slots: [] };
                 } else if (!state.flags.stock_check.available) action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
@@ -122,7 +124,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="", ser
         action = planner(state, interp);
     }
     if (state.intent === 'purchase' && ['recap', 'answer_question'].includes(action.type) && state.slots.brand && state.slots.btu) {
-        state.flags.stock_check = await getProductAvailability(state.slots.brand, state.slots.btu);
+        state.flags.stock_check = await lookupAvailability(state.slots.brand, state.slots.btu);
         if (state.flags.stock_check.status === 'checked') {
             state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
         }

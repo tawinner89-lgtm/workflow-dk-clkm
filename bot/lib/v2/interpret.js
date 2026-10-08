@@ -50,11 +50,66 @@ function deterministicSlots(message, state) {
     }
     const phone = message.match(/(?:\+?212|00212|0)?[\s().-]*[5-7](?:[\s().-]*\d){8}/);
     if (phone) slots.phone = getMoroccanPhone(phone[0]);
+
+    // Meta click-to-WhatsApp ads and website forms often prefill a labeled
+    // message. Read only explicit label/value lines so this fallback remains
+    // safer than guessing a name or address from free text.
+    const formLabels = {
+        name: /^(?:nom(?:\s+(?:et\s+pr[eé]nom|complet))?|name|client(?:\s+name)?|full\s+name)$/i,
+        address: /^(?:adresse|address|adresse\s+compl[eè]te|lieu|location)$/i,
+        phone: /^(?:t[eé]l[eé]phone|t[eé]l|tel|phone|num[eé]ro(?:\s+de\s+t[eé]l[eé]phone)?)$/i,
+        brand: /^(?:marque|brand)$/i,
+        btu: /^(?:btu|puissance)$/i,
+        budget: /^(?:budget|budget\s+approximatif)$/i,
+        room_area: /^(?:surface|surface\s+de\s+la\s+pi[eè]ce|room\s+area)$/i,
+        symptom: /^(?:panne|probl[eè]me|sympt[oô]me|description\s+du\s+probl[eè]me)$/i,
+        day: /^(?:jour|date|day)$/i,
+        time_window_or_hour: /^(?:heure|horaire|time|cr[eé]neau)$/i,
+        service_type: /^(?:service|type\s+de\s+(?:service|demande)|besoin|motif)$/i,
+    };
+    for (const line of message.split(/[\r\n;|]+/)) {
+        const match = line.trim().match(/^([^:=]{2,40})\s*[:=]\s*(.+)$/);
+        if (!match) continue;
+        const label = match[1].trim();
+        const value = match[2].trim();
+        for (const [slot, pattern] of Object.entries(formLabels)) {
+            if (!pattern.test(label) || !value) continue;
+            if (slot === 'phone') {
+                const parsedPhone = getMoroccanPhone(value);
+                if (parsedPhone) slots.phone = parsedPhone;
+            } else if (slot === 'brand') {
+                const parsedBrand = business.sales_catalog.brands_in_stock.find(item => item.toLowerCase() === value.toLowerCase());
+                if (parsedBrand) slots.brand = parsedBrand;
+            } else if (slot === 'btu') {
+                const digits = value.replace(/\D/g, '');
+                const parsedBtu = `${digits}_BTU`;
+                if (business.sales_catalog.btu_options.includes(parsedBtu)) slots.btu = parsedBtu;
+            } else if (slot === 'budget' || slot === 'room_area') {
+                const digits = value.replace(/[^\d.,]/g, '').replace(',', '.');
+                if (digits) slots[slot] = Number(digits);
+            } else if (slot === 'service_type') {
+                const parsedIntent = normalizeIntent(value);
+                if (parsedIntent) slots.service_type = parsedIntent;
+            } else if (slot === 'day') {
+                const parsedDay = resolveDate(value);
+                if (parsedDay) slots.day = parsedDay;
+            } else {
+                slots[slot] = value;
+            }
+            break;
+        }
+    }
+    if (slots.service_type && !state.intent) slots.intent = slots.service_type;
+    if (!slots.btu && slots.room_area) {
+        const area = Number(slots.room_area);
+        slots.btu = area <= 12 ? '9000_BTU' : area <= 18 ? '12000_BTU' : area <= 25 ? '18000_BTU' : '24000_BTU';
+    }
     return slots;
 }
 
 function detectQuestionAsked(message) {
     const clean = String(message || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/(?:\bwhere\s+(?:are\s+you|is\s+dk\s+clim|are\s+you\s+based|are\s+you\s+located)|\bheadquarters\b|\b(?:votre|dk\s+clim|l'entreprise)\s+(?:siege|adresse)\b|\bsiege\b|\bou\s+(?:se\s+trouve|etes-vous|est\s+situe)|\bvous\s+etes\s+(?:situe|base)|\bquelle\s+ville\b|\bfin\s+(?:kayn|kayna)\b|\bsiege\s+dyalkom\b|\bl\s*['’]?adresse\s+dyal(?:kom|dk\s+clim)\b|\b(?:wach|wash)\b.{0,35}\b(?:katkhadmo|katkhdmo|katdirou|kat3amlo)\b.{0,30}\b(?:f|fi|a)\s+[\p{L}]+|\bintervenez-vous\b.{0,30}\b(?:a|dans|sur)\b|\bservices?\s+(?:a|dans|sur)\b|فين|أين|مقر|عنوانكم|واش.{0,35}(?:كتخدمو|تخدمون|كتديرو|تدخلوا).{0,30}(?:ف|في))/iu.test(clean)) return 'company';
     if (/(?:bch7al|ch7al|taman|prix|price|combien|combien coute|quel est le prix|a combien|how much)/i.test(clean)) return 'price';
     if (/(?:disponibil|en stock|stock|kayn|kayna|mawjoud|available|availability)/i.test(clean)) return 'availability';
     return null;
@@ -178,6 +233,10 @@ Return EXACTLY this JSON structure:
     if (!parsed.slot_updates) parsed.slot_updates = {};
 
     parsed.slot_updates = { ...parsed.slot_updates, ...localSlots };
+    if (localSlots.intent) {
+        parsed.intent_change = localSlots.intent;
+        delete parsed.slot_updates.intent;
+    }
     parsed.is_lost = Boolean(parsed.is_lost || localLost);
     parsed.is_correction = Boolean(parsed.is_correction || localCorrection);
     if (localCorrection && state.slots.brand) {
@@ -190,7 +249,13 @@ Return EXACTLY this JSON structure:
     if (!parsed.intent_change) parsed.intent_change = localIntent === 'price' && state.intent ? null : (localIntent || (localLost && !state.intent ? 'purchase' : null));
     parsed.detected_language = detectLanguage(customerMessage) || parsed.detected_language || state.language || 'ar';
     if (/\b(?:j\s*['’]?\s*aimerais\s+en\s+savoir\s+plus\s+sur\s+votre\s+entreprise|en savoir plus sur (?:votre )?entreprise|parlez-moi de votre entreprise|about your company|about dk clim)\b/iu.test(customerMessage)) parsed.question_asked = 'company';
-    if (!parsed.question_asked) parsed.question_asked = detectQuestionAsked(customerMessage);
+    const localQuestion = detectQuestionAsked(customerMessage);
+    if (localQuestion === 'company') {
+        parsed.question_asked = 'company';
+        if (!localSlots.brand && !localSlots.btu) parsed.intent_change = null;
+    } else if (!parsed.question_asked) {
+        parsed.question_asked = localQuestion || parsed.question_asked;
+    }
 
     if (parsed.slot_updates.brand) {
         const match = business.sales_catalog.brands_in_stock.find(brand => brand.toLowerCase() === String(parsed.slot_updates.brand).toLowerCase());
