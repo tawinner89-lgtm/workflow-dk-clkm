@@ -773,14 +773,18 @@ async function notifyAdminV2(userId, slots, intent) {
 
   if (result.technician?.phone) {
     const techChatId = normalizePhoneWithSuffix(result.technician.phone);
+    const rawClientPhone = intervention.clientContactPhone || userId;
+    const moroccanClientPhone = getMoroccanPhone(rawClientPhone);
+    const normalizedClientPhone = normalizePhone(rawClientPhone);
+    const displayClientPhone = moroccanClientPhone || (normalizedClientPhone ? `+${normalizedClientPhone}` : 'Non renseigné');
+    const problem = [intervention.problemReported, intervention.type].filter(Boolean).join(' / ') || 'À préciser';
     const notifMsg =
-      `🚨 *INTERVENTION DK CLIM*\n\n` +
-      `👤 *Client:* ${intervention.clientName}\n` +
-      `📍 *Adresse:* ${intervention.clientAddress}\n` +
-      `📞 *Téléphone:* ${intervention.clientContactPhone}\n` +
-      `🔧 *Demande:* ${intervention.problemReported} (${intervention.type})\n` +
-      `🕐 *Créneau:* ${intervention.startTime}\n` +
-      `🔖 *Référence:* ${intervention.reference}`;
+      `🚨 NOUVELLE INTERVENTION ASSIGNÉE (V2) 🚨\n\n` +
+      `👤 Client: ${intervention.clientName || 'Non renseigné'}\n` +
+      `📍 Adresse: ${intervention.clientAddress || 'Non renseignée'}\n` +
+      `📞 Téléphone: ${displayClientPhone}\n` +
+      `🔧 Problème/Type: ${problem}\n\n` +
+      `Merci de contacter le client pour confirmer l'heure de visite.`;
     try {
       await client.sendMessage(techChatId, BOT_WATERMARK + notifMsg);
       console.log(`[TECH NOTIFIED] ${intervention.reference}`);
@@ -798,20 +802,49 @@ const activeMessageIds = new Map();
 const pendingBodies = new Map();
 const handoffCooldowns = new Map();
 
-async function notifyHandoff(userId, reason, turnBody) {
+async function notifyHandoff(userId, reason, turnBody, bookingState = null) {
     const now = Date.now();
     const last = handoffCooldowns.get(userId) || 0;
     if (now - last < 10 * 60 * 1000) return;
     handoffCooldowns.set(userId, now);
-    
-    const adminMsg = `⚠️ [HANDOFF ALERT]
-User: ${userId}
-Reason: ${reason}
-Last Msg: ${turnBody}`;
+
+    let state = bookingState;
+    if (!state) {
+        try {
+            const result = await pool.query(
+                'SELECT state FROM "ConversationState" WHERE phone = $1',
+                [userId]
+            );
+            state = result.rows[0]?.state || {};
+        } catch (error) {
+            console.error('[HANDOFF STATE ERROR]', error.message);
+            state = {};
+        }
+    }
+
+    const slots = state.slots || {};
+    const rawPhone = slots.phone || state.clientContactPhone || userId;
+    const moroccanPhone = getMoroccanPhone(rawPhone);
+    const normalizedPhone = normalizePhone(rawPhone);
+    const displayPhone = moroccanPhone || (normalizedPhone ? `+${normalizedPhone}` : 'Non renseigné');
+    const clientName = slots.name || state.clientName || 'Non renseigné';
+    const address = slots.address || state.clientAddress || 'Non renseignée';
+    const problem = slots.symptom || state.problemReported || state.type || state.intent || turnBody || reason || 'À préciser';
+    const ticket = `🚨 NOUVELLE INTERVENTION ASSIGNÉE (V2) 🚨
+
+👤 Client: ${clientName}
+📍 Adresse: ${address}
+📞 Téléphone: ${displayPhone}
+🔧 Problème/Type: ${problem}
+
+Merci de contacter le client pour confirmer l'heure de visite.`;
+
     for (const admin of TEAM_NUMBERS) {
         try {
-            await client.sendMessage(normalizePhoneWithSuffix(admin), adminMsg);
-        } catch(e) {}
+            await client.sendMessage(normalizePhoneWithSuffix(admin), ticket);
+        } catch (error) {
+            console.error(`[HANDOFF NOTIFICATION ERROR] ${admin}:`, error.message);
+        }
     }
 }
 
@@ -1241,7 +1274,9 @@ client.on("message", async (msg) => {
         try { await pool.query('INSERT INTO "ConversationState" (phone, state, "updatedAt") VALUES ($1, $2, NOW()) ON CONFLICT (phone) DO UPDATE SET state = EXCLUDED.state, "updatedAt" = NOW()', [userId, v2Result.newState]); } catch (e) {}
         
         if (v2Result.nextAction?.type === 'handoff') {
-            notifyHandoff(userId, v2Result.nextAction.reason, joinedBody).catch(()=>{});
+            notifyHandoff(userId, v2Result.nextAction.reason, joinedBody, v2Result.newState).catch(error => {
+                console.error('[HANDOFF NOTIFICATION ERROR]', error.message);
+            });
         }
 
       } catch (innerErr) {
