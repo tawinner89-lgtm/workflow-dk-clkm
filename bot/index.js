@@ -31,6 +31,7 @@ const BUSINESS_RULES_TEXT = JSON.stringify(require("../shared/business.json"), n
 // Constants & Configuration
 // ---------------------------------------------------------
 const BOT_WATERMARK = "\u200B";
+const MEDIA_AUTO_REPLY = "Merci pour votre fichier. Notre service client l'analysera et vous répondra dans les plus brefs délais. 📞 شكراً على إرسالك. فريق خدمة العملاء سيقوم بالرد عليك في أقرب وقت. 📞";
 
 // Phone Normalization Utilities
 function getRawPhone(phoneOrId) {
@@ -818,6 +819,16 @@ const lastMediaReply = new Map();
 
 client.on("message", async (msg) => {
   if (msg.from === "status@broadcast" || msg.from.includes("@g.us")) return;
+
+  // Acknowledge media immediately. Never download it or pass it to the LLM.
+  if (msg.hasMedia || ["image", "video", "audio", "ptt"].includes(msg.type)) {
+    try {
+      await msg.reply(BOT_WATERMARK + MEDIA_AUTO_REPLY);
+    } catch (error) {
+      console.error("[MEDIA AUTO-REPLY ERROR]", error.message);
+    }
+    return;
+  }
 
   let rawPhone = getRawPhone(msg.from);
   try {
