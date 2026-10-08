@@ -176,14 +176,25 @@ function render(state, action) {
         const offer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
         const stock = state.flags?.stock_check;
         const price = offer ? formatOfferPrice(offer, locale) : '';
+        const missingDetails = ['name', 'phone', 'address'].filter(slot => !state.slots[slot]);
+        const requestedDetails = locale === 'fr'
+            ? missingDetails.map(slot => ({ name: 'votre nom complet', phone: 'votre numéro de téléphone', address: 'votre adresse' })[slot])
+            : locale === 'arabic'
+                ? missingDetails.map(slot => ({ name: 'اسمك الكامل', phone: 'رقم هاتفك', address: 'عنوانك' })[slot])
+                : missingDetails.map(slot => ({ name: 'smiytek kamla', phone: 'numra dyal telephone', address: 'l adresse dyalek' })[slot]);
+        const detailsQuestion = locale === 'fr'
+            ? `Pour finaliser, pouvez-vous nous donner ${requestedDetails.join(', ')} ?`
+            : locale === 'arabic'
+                ? `لإتمام الطلب، هل يمكنك إرسال ${requestedDetails.join('، ')}؟`
+                : `Bach nkemlo lcommande, momkin tsift lina ${requestedDetails.join(', ')} 3afak?`;
         if (stock?.can_preorder) {
-            if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU n'est pas en stock local. Nous pouvons le commander sous 24 à 48 h. ${price} Pour préparer la commande, indiquez votre nom, votre téléphone et votre adresse. Cela vous convient-il ?`;
-            if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} غير متوفر محلياً. يمكننا طلبه خلال 24 إلى 48 ساعة. ${price} لإعداد الطلب، أرسل اسمك ورقم هاتفك وعنوانك. هل يناسبك ذلك؟`;
-            return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU daba 0 f stock local, walakin n9edro njibouh lik f 24-48 sa3a. ${price} Bach nkemlo, sifet lia smiytek kamla, numra w l'adresse. Wach nconfirmi lik?`;
+            if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU n'est pas en stock local. Nous pouvons le commander sous 24 à 48 h. ${price} ${detailsQuestion}`;
+            if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} غير متوفر محلياً. يمكننا طلبه خلال 24 إلى 48 ساعة. ${price} ${detailsQuestion}`;
+            return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU daba ma kaynach f stock local, walakin n9edro njibouha f 24-48 sa3a. ${price} ${detailsQuestion}`;
         }
-        if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible${stock?.stock_quantity ? ` (${stock.stock_quantity} en stock)` : ''}. ${price} Pour finaliser, indiquez votre nom complet, votre téléphone, votre adresse et le jour/heure de livraison souhaités.`;
-        if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر${stock?.stock_quantity ? ` (${stock.stock_quantity} في المخزون)` : ''}${price ? ` بسعر ${price}` : ''}. لإتمام الطلب، أرسل اسمك الكامل ورقم هاتفك وعنوانك وموعد التسليم المناسب.`;
-        return `Salam, ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn${stock?.stock_quantity ? ` (${stock.stock_quantity} f stock)` : ''}${price ? ` b ${price}` : ''}. Bach nkemlo commande, khasni smiytek kamla, numra, l'adresse, w nhar/waqt dyal livraison.`;
+        if (locale === 'fr') return `${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU est disponible${stock?.stock_quantity ? ` (${stock.stock_quantity} en stock)` : ''}. ${price} ${detailsQuestion}`;
+        if (locale === 'arabic') return `${state.slots.brand} بقدرة ${state.slots.btu.replace('_BTU', '')} متوفر${stock?.stock_quantity ? ` (${stock.stock_quantity} في المخزون)` : ''}. ${price} ${detailsQuestion}`;
+        return `Salam, ${state.slots.brand} ${state.slots.btu.replace('_BTU', '')} BTU kayn${stock?.stock_quantity ? ` (${stock.stock_quantity} f stock)` : ''}. ${price} ${detailsQuestion}`;
     }
     if (action.type === 'ask' && action.slots?.[0] === 'model_variant') {
         const options = getOffers(state.slots.brand, state.slots.btu).map(offer => `${offer.modele} : ${formatOfferPrice(offer, locale)}`);

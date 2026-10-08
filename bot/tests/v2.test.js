@@ -309,6 +309,29 @@ test('planner groups remaining booking details into one booking_group ask', () =
     assert.deepEqual(action, { type: 'ask', reason: 'booking_group', slots: ['booking_group'] });
 });
 
+test('purchase booking_group asks only for missing client details and ends with a question', async () => {
+    const state = {
+        intent: 'purchase', stage: 'COLLECT', language: 'ar', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU' },
+        flags: { stock_check: { status: 'checked', available: true, stock_quantity: 1 } },
+        last_bot_question_slot: 'brand',
+    };
+    const result = await runTurn(async () => ({ text: '{"slot_updates":{"brand":"CIAT"}}', tokens: 1 }), state, 'CIAT', []);
+    assert.equal(result.nextAction.reason, 'booking_group');
+    assert.match(result.reply, /\?$/);
+    assert.match(result.reply, /smiytek.*numra dyal telephone.*l adresse/i);
+    assert.doesNotMatch(result.reply, /booking group|group name|nhar\/waqt|livraison/i);
+    assert.notEqual(result.nextAction.type, 'handoff');
+});
+
+test('purchase message with a brand but no numeric BTU asks for BTU instead of handing off', async () => {
+    const state = { intent: 'purchase', stage: 'COLLECT', language: 'ar', ask_count: 0, slots: { brand: 'CIAT' }, flags: {} };
+    const result = await runTurn(async () => ({ text: '{"slot_updates":{"brand":"CIAT"}}', tokens: 1 }), state, 'Bghit nchri CIAT BTU', []);
+    assert.equal(result.nextAction.type, 'ask');
+    assert.equal(result.nextAction.slots[0], 'btu');
+    assert.match(result.reply, /\?/);
+});
+
 test('planner still asks the repair symptom before grouping booking details', () => {
     const state = { intent: 'repair', stage: 'COLLECT', ask_count: 0, slots: {}, flags: {} };
     const action = planner(state, { slot_updates: {}, intent_change: null });

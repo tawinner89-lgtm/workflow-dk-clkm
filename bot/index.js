@@ -841,7 +841,13 @@ Merci de contacter le client pour confirmer l'heure de visite.`;
 
     for (const admin of TEAM_NUMBERS) {
         try {
-            await client.sendMessage(normalizePhoneWithSuffix(admin), ticket);
+            const adminPhone = normalizePhone(admin);
+            if (!/^212[5-7]\d{8}$/.test(adminPhone)) {
+                throw new Error('ADMIN_NUMBERS must contain a Moroccan phone number, not a WhatsApp/LID identifier');
+            }
+            const adminId = await client.getNumberId(adminPhone);
+            if (!adminId?._serialized) throw new Error('Configured admin number is not registered on WhatsApp');
+            await client.sendMessage(adminId._serialized, BOT_WATERMARK + ticket);
         } catch (error) {
             console.error(`[HANDOFF NOTIFICATION ERROR] ${admin}:`, error.message);
         }
