@@ -234,9 +234,9 @@ function render(state, action) {
         return render(state, { type: 'ask', reason: 'alternative_brand', slots: ['brand'] });
     }
     if (action.type === 'answer_question' && action.slots?.[0] === 'company') {
-        if (locale === 'fr') return "DK Clim accompagne ses clients à Casablanca pour la vente, l'installation, l'entretien et la réparation de climatiseurs. Quelle information souhaitez-vous connaître ?";
-        if (locale === 'arabic') return "تقدم DK Clim في الدار البيضاء خدمات بيع المكيفات وتركيبها وصيانتها وإصلاحها. ما المعلومات التي ترغب في معرفتها؟";
-        return "DK Clim kat3awn lclients f Casa f chra, tarkib, entretien w siyana dyal lclim. Chno lma3louma li bghiti t3ref?";
+        if (locale === 'fr') return "DK Clim accompagne ses clients pour la vente, l'installation, l'entretien et la réparation de climatiseurs. Indiquez-nous votre ville afin que notre équipe vérifie la disponibilité du service. Quelle information souhaitez-vous connaître ?";
+        if (locale === 'arabic') return "تقدم DK Clim خدمات بيع المكيفات وتركيبها وصيانتها وإصلاحها. أخبرنا بمدينتك ليتحقق فريقنا من توفر الخدمة. ما المعلومات التي ترغب في معرفتها؟";
+        return "DK Clim kat3awn lclients f chra, tarkib, entretien w siyana dyal lclim. Goul lina smit lmdina bach l'equipe t2aked lik wach service kayn tmak. Chno lma3louma li bghiti t3ref?";
     }
     if (action.type === 'recap' && state.intent === 'purchase') {
         const offer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);

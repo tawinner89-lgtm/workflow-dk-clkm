@@ -9,6 +9,7 @@ const { planner } = require('../lib/v2/planner');
 const { interpret } = require('../lib/v2/interpret');
 const { validate } = require('../lib/v2/validator');
 const { render, getOffer } = require('../lib/v2/templates');
+const { writeReply, WRITER_SYSTEM_PROMPT } = require('../lib/v2/writer');
 const { runTurn } = require('../lib/v2/engine');
 const { createInventoryService } = require('../src/services/inventory');
 const { createInterventionService } = require('../src/services/interventions');
@@ -182,6 +183,24 @@ test('company inquiry with j\'aimerais is normalized and recognized', async () =
         slots: {}, intent: null, stage: 'INITIAL', last_bot_question_slot: null
     }, "j'aimerais en savoir plus sur votre entreprise");
     assert.equal(result.question_asked, 'company');
+});
+
+test('company reply does not restrict DK Clim service to Casablanca', () => {
+    const reply = render({ language: 'fr' }, { type: 'answer_question', slots: ['company'] });
+    assert.doesNotMatch(reply, /à Casablanca|dans la région de Casablanca/i);
+    assert.match(reply, /votre ville/i);
+    assert.match(WRITER_SYSTEM_PROMPT, /not restricted to Casablanca/i);
+    assert.match(WRITER_SYSTEM_PROMPT, /any city/i);
+});
+
+test('booking asks never expose hallucinated booking-group fields', async () => {
+    let providerCalls = 0;
+    const result = await writeReply(async () => { providerCalls++; return { text: 'What booking group?', tokens: 1 }; },
+        { intent: 'repair', language: 'ar', slots: {} },
+        { type: 'ask', reason: 'collect_info', slots: ['booking_group_name'] });
+    assert.equal(providerCalls, 0);
+    assert.equal(result.deterministic, true);
+    assert.doesNotMatch(result.text, /group|groupe|booking/i);
 });
 
 test('fixed replies follow French, Darija Latin, and Arabic-script language selection', () => {
