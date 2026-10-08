@@ -16,6 +16,8 @@ function detectLanguage(message) {
 function deterministicSlots(message, state) {
     const lower = message.toLowerCase();
     const slots = {};
+    if (/(?:n7as\s+(?:dayz|preinstalle)|cuivre.{0,20}(?:déjà|deja|pré-?install)|pré-?câblage.{0,20}(?:existant|installé)|نحاس.{0,20}(?:مركب|موجود))/iu.test(message)) slots.copper_preinstalled = true;
+    else if (/(?:n7as\s+(?:ma\s+)?(?:dayzch|mach[iy]\s+dayz)|ma\s+kaynch\s+n7as\s+dayz|cuivre.{0,20}(?:pas|non)\s+(?:pré-?installé|installé)|pas\s+de\s+pré-?câblage|ما\s+كاينش\s+النحاس)/iu.test(message)) slots.copper_preinstalled = false;
     const knownBrand = business.sales_catalog.brands_in_stock.find(brand => new RegExp(`\\b${brand.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i').test(message));
     if (knownBrand) slots.brand = knownBrand;
     const btuMatch = message.match(/\b(9\s?000|12\s?000|18\s?000|24\s?000)\s*_?\s*btu\b/i);
@@ -78,6 +80,16 @@ function deterministicSlots(message, state) {
     }
     if (normalizeIntent(message) === 'purchase' && /\b(?:m3a\s+(?:tarkib|installation)|avec\s+(?:installation|pose)|on?\s*r(?:a)?keb|installer|pose\s+comprise)\b/i.test(message)) {
         slots.install_mode = 'purchase_with_installation';
+    }
+
+    // Keep the parent installation request when the customer accepts the
+    // "buy from us" option in a later turn. The purchase wording is often
+    // "bghit nchriha mn 3andkom" and contains no repeated mention of tarkib.
+    const buyingFromUs = /\b(?:bghit|khasni|je\s+veux)\b.{0,35}\b(?:nchri\w*|chri\w*|acheter|ach[eè]ter|buy)\b|\b(?:acheter|ach[eè]ter|buy)\b.{0,35}\b(?:chez\s+vous|mn\s+3andkom|men\s+3andkom)\b/i.test(message);
+    const selectsBuyFromUs = state.last_bot_question_slot === 'install_mode' && /\b(?:mn|men|chez)\s+(?:3andkom|3andkoum|3andna|vous)\b/i.test(message);
+    if (state.intent === 'installation' && (buyingFromUs || selectsBuyFromUs)) {
+        slots.install_mode = 'purchase_with_installation';
+        slots.intent = 'purchase';
     }
 
     // Meta click-to-WhatsApp ads and website forms often prefill a labeled
@@ -163,7 +175,7 @@ async function interpret(llmFn, state, customerMessage) {
         last_bot_question_slot: state.last_bot_question_slot
     };
     const systemPrompt = `You are DK Clim NLU. Extract from ANY Moroccan message (Darija Latin, French, Arabic) in ANY order:
-{"intent":"purchase|panne|entretien|installation|devis|price|availability|null","intent_change":"purchase|repair|maintenance|installation|price|availability|null","slot_updates":{"brand":null,"btu":null,"budget":null,"name":null,"address":null,"phone":null,"room_area":null,"symptom":null,"day":null,"time_window_or_hour":null},"question_asked":"price|availability|company|null","detected_language":"ar|fr","is_correction":false,"is_lost":false}
+{"intent":"purchase|panne|entretien|installation|devis|price|availability|null","intent_change":"purchase|repair|maintenance|installation|price|availability|null","slot_updates":{"brand":null,"btu":null,"budget":null,"name":null,"address":null,"phone":null,"room_area":null,"symptom":null,"day":null,"time_window_or_hour":null,"copper_preinstalled":true|false|null},"question_asked":"price|availability|company|null","detected_language":"ar|fr","is_correction":false,"is_lost":false}
 Rules:
 - Extract every slot explicitly present, regardless of order. Example: bghit Carrier 12000 Casa 06... => brand Carrier, btu 12000_BTU, address Casa, phone.
 - If is_correction, overwrite the previous slot with the corrected value; preserve unrelated known slots.
@@ -178,11 +190,11 @@ Customer message: ${JSON.stringify(customerMessage)}
 
 Task: Output a JSON interpreting the customer's intent, slots, and context.
 RULES:
-1. slot_updates: Map of explicit new or updated slots (e.g. name, address, phone, symptom, ac_type, units, install_mode, day, time_window_or_hour, brand, btu, model_variant, budget, room_area). Brands: ${business.sales_catalog.brands_in_stock.join(', ')}. BTU choices: ${business.sales_catalog.btu_options.join(', ')}. For room area, use 12m2=9000_BTU, 18m2=12000_BTU, 25m2=18000_BTU and larger=24000_BTU. Extract budget amounts. Map service requests using customer meaning: repair, maintenance, installation, purchase.
+1. slot_updates: Map of explicit new or updated slots (e.g. name, address, phone, symptom, ac_type, units, install_mode, day, time_window_or_hour, brand, btu, model_variant, budget, room_area, copper_preinstalled). Set copper_preinstalled to true only when the client explicitly confirms copper piping is already installed, false only when explicitly denied; otherwise omit it. Brands: ${business.sales_catalog.brands_in_stock.join(', ')}. BTU choices: ${business.sales_catalog.btu_options.join(', ')}. For room area, use 12m2=9000_BTU, 18m2=12000_BTU, 25m2=18000_BTU and larger=24000_BTU. Extract budget amounts. Map service requests using customer meaning: repair, maintenance, installation, purchase.
 2. answers_to_slot: If the user answers a short text like "Gainable", "Split", or "Casa", check state.last_bot_question_slot. Attach it here if it fits, else guess the right slot. For appointment day, output a calendar date and preserve an explicit time such as 14:30 or 14h30.
 3. question_asked: If the customer asks a question, set it to a single keyword representing the topic (e.g. "price", "brand", "availability", "zones"). Do NOT use "price" unless the user explicitly asks about cost or price (Note: "chkadirou" means "Do you do", not "How much", so it is an availability question, not price).
 4. acceptance: If they say "ok/oui/d'accord" to a bot proposal, set { price_accepted: true } or { time_accepted: true } depending on context.
-5. intent_change: If they specify the service (e.g., repair, maintenance, installation, purchase), including from a "Type de service demande" form field, set it here.
+5. intent_change: If they specify the service (e.g., repair, maintenance, installation, purchase), including from a "Type de service demande" form field, set it here. If the current intent is installation and they choose to buy the unit from DK Clim (e.g. "bghit nchriha mn 3andkom"), change intent to purchase AND set slot_updates.install_mode to "purchase_with_installation" so the installation appointment context is preserved.
 6. closing: true if they say "merci", "au revoir", "bonne journee" without adding new info.
 7. human_requested: MUST be false by default. Set to true ONLY if the customer explicitly demands to talk to a human being, live agent, technician, or admin.
 8. out_of_scope: true if the message is completely irrelevant to HVAC, DK CLIM, or air conditioning.
@@ -266,6 +278,7 @@ Return EXACTLY this JSON structure:
     delete localSlots._invalidPhone;
     parsed.slot_updates = { ...parsed.slot_updates, ...localSlots };
     if (localSlots.install_mode === 'purchase_with_installation') parsed.intent_change = 'purchase';
+    if (localSlots.intent === 'purchase') parsed.intent_change = 'purchase';
     if (parsed.slot_updates.phone) parsed.phone_invalid = false;
     if (localSlots.intent) {
         parsed.intent_change = localSlots.intent;
@@ -317,7 +330,10 @@ Return EXACTLY this JSON structure:
     if (parsed.slot_updates.time_window_or_hour && !checkBusinessHours(parsed.slot_updates.day, parsed.slot_updates.time_window_or_hour)) delete parsed.slot_updates.time_window_or_hour;
     if (simpleMessage && state.last_bot_question_slot && !Object.keys(parsed.slot_updates).length && customerMessage.trim()) {
         const slot = state.last_bot_question_slot;
-        if (['name', 'address', 'symptom', 'units', 'budget', 'install_mode', 'day', 'time_window_or_hour', 'ac_type'].includes(slot)) parsed.slot_updates[slot] = customerMessage.trim();
+        if (slot === 'copper_preinstalled') {
+            if (/^(?:oui|yes|wakha|iyeh|ah|na3am|نعم|إييه)$/iu.test(customerMessage.trim())) parsed.slot_updates.copper_preinstalled = true;
+            else if (/^(?:non|no|la|laa|machi|ma\s+)?(?:non|no|la|laa|مركبش|لا)$/iu.test(customerMessage.trim())) parsed.slot_updates.copper_preinstalled = false;
+        } else if (['name', 'address', 'symptom', 'units', 'budget', 'install_mode', 'day', 'time_window_or_hour', 'ac_type'].includes(slot)) parsed.slot_updates[slot] = customerMessage.trim();
         else if (slot === 'phone') {
             const phone = getMoroccanPhone(customerMessage);
             if (phone) parsed.slot_updates.phone = phone;

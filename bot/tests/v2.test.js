@@ -353,6 +353,34 @@ test('purchase with installation remains a sale and collects installation appoin
     assert.equal(planner(installationState, { slot_updates: {} }).slots[0], 'time_window_or_hour');
 });
 
+test('choosing to buy from DK during installation preserves install mode and requires appointment slots', async () => {
+    const state = {
+        intent: 'installation', stage: 'COLLECT', language: 'ar', ask_count: 0,
+        last_bot_question_slot: 'install_mode',
+        slots: { brand: 'CIAT', btu: '9000_BTU' },
+        flags: {},
+    };
+    const result = await runTurn(async () => { throw new Error('explicit install-mode answer must use deterministic NLU'); }, state,
+        'bghit nchriha mn 3andkom', [], '', {
+            getProductAvailability: async () => ({ status: 'checked', available: true, can_preorder: false, stock_quantity: 1, alternatives: [] }),
+        });
+    assert.equal(result.newState.intent, 'purchase');
+    assert.equal(result.newState.slots.install_mode, 'purchase_with_installation');
+    assert.equal(result.nextAction.reason, 'booking_group');
+    assert.match(result.reply, /nhar li ynasbek l tarkib/i);
+
+    const appointmentState = {
+        intent: 'purchase', stage: 'COLLECT', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU', install_mode: 'purchase_with_installation', name: 'Othman', address: 'Casa Hay Farah', phone: '+212666071766' },
+        flags: { stock_check: { status: 'checked', available: true } },
+    };
+    assert.deepEqual(planner(appointmentState, { slot_updates: {} }), { type: 'ask', reason: 'collect_info', slots: ['day'] });
+    appointmentState.slots.day = '2026-10-09';
+    assert.deepEqual(planner(appointmentState, { slot_updates: {} }), { type: 'ask', reason: 'collect_info', slots: ['time_window_or_hour'] });
+    appointmentState.slots.time_window_or_hour = '14:30';
+    assert.equal(planner(appointmentState, { slot_updates: {} }).type, 'recap');
+});
+
 test('inventory records a zero-stock request as PREORDER without decrementing stock', async () => {
     const calls = [];
     const fakePool = {
@@ -533,6 +561,31 @@ test('planner still asks the repair symptom before grouping booking details', ()
     const state = { intent: 'repair', stage: 'COLLECT', ask_count: 0, slots: {}, flags: {} };
     const action = planner(state, { slot_updates: {}, intent_change: null });
     assert.deepEqual(action, { type: 'ask', reason: 'collect_info', slots: ['symptom'] });
+});
+
+test('purchase with installation states the copper condition without asking a separate question', async () => {
+    const state = {
+        intent: 'purchase', stage: 'COLLECT', language: 'ar', ask_count: 0,
+        slots: { brand: 'CIAT', btu: '9000_BTU', install_mode: 'purchase_with_installation' },
+        flags: { stock_check: { status: 'checked', available: true, can_preorder: false } },
+    };
+    const reply = render(state, { type: 'ask', reason: 'booking_group', slots: ['booking_group'] });
+    assert.match(reply, /Tarkib kayn b 499 DH TTC \(ila kan n7as dayz\)/);
+    assert.match(reply, /Hada thaman l’installasyon li 3andna f tarif/);
+    assert.doesNotMatch(reply, /Wach n7as dayz/);
+    const validation = await validate(null, reply, state, { type: 'ask' });
+    assert.equal(validation.valid, true);
+});
+
+test('purchase price response keeps the installation condition in the details prompt', () => {
+    const state = {
+        intent: 'purchase', stage: 'COLLECT', language: 'ar',
+        slots: { brand: 'CIAT', btu: '9000_BTU', install_mode: 'purchase_with_installation' },
+        flags: { stock_check: { status: 'checked', available: true, can_preorder: false } },
+    };
+    const reply = render(state, { type: 'answer_question', reason: 'purchase_price_booking', slots: ['price'] });
+    assert.match(reply, /Tarkib kayn b 499 DH TTC \(ila kan n7as dayz\)/);
+    assert.doesNotMatch(reply, /Wach n7as dayz/);
 });
 
 

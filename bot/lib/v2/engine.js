@@ -9,6 +9,7 @@ const business = require('../../../shared/business.json');
 const { normalizeIntent } = require('./intent');
 const { getOffer } = require('./templates');
 function clean(val) {
+    if (typeof val === 'boolean') return val;
     if (val===null||val===undefined||val==="") return null;
     const s=String(val).trim().toLowerCase();
     if (['null','n/a','none','inconnu','slot_name_or_null'].includes(s)) return null;

@@ -22,6 +22,7 @@ async function validate(llmFn, reply, state, nextAction) {
     let tokens = 0;
     const lower = reply.toLowerCase();
 
+
     if (state.intent === 'purchase') {
         if (/\b\d+\s*(?:en stock|f\s+stock|في\s+المخزون|units?\s+available|unit[eé]s?\s+en\s+stock)\b/iu.test(reply)) {
             return { valid: false, reason: 'La quantité exacte en stock est réservée à l’équipe interne.', type: 'hard', tokens };
@@ -75,7 +76,9 @@ async function validate(llmFn, reply, state, nextAction) {
         const numStr = normalizePrice(rm[1]);
         if (numStr && !allowedPriceStrs.has(numStr)) return { valid: false, reason: `Prix invente ou non autorise: ${numStr}`, type: 'hard', tokens };
     }
-    const barePriceRegex = /(?:prix|price|taman|الثمن|السعر)[^0-9٠-٩]{0,16}([\d٠-٩][\d٠-٩\s,.]*)/giu;
+    // A price without currency still needs a realistic multi-digit amount;
+    // this avoids treating Darija words such as "d9i9" as a quoted price.
+    const barePriceRegex = /(?:prix|price|taman|الثمن|السعر)[^0-9٠-٩]{0,16}([\d٠-٩]{3,}(?:[\d٠-٩\s,.]*))/giu;
     while ((rm = barePriceRegex.exec(reply)) !== null) {
         const numStr = normalizePrice(rm[1]);
         if (numStr && !allowedPriceStrs.has(numStr)) return { valid: false, reason: `Prix invente ou non autorise: ${numStr}`, type: 'hard', tokens };

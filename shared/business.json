@@ -134,6 +134,12 @@
     "repair_policy_brands": "Nous réparons toutes les marques de climatiseurs.",
     "tarifs_services": {
       "installation": 499,
+      "installation_pricing_rule": {
+        "amount_ttc_dh": 499,
+        "applies_only_when": "Copper piping is already pre-installed (installation sur pré-câblage existant / n7as dayz).",
+        "if_status_unknown": "Do not ask a separate question. Quote the base fee only with the explicit pre-installed copper condition attached.",
+        "if_not_preinstalled": "You may state the 499 DH TTC base tariff only with its pre-installed copper condition clearly attached; the exact total requires an on-site assessment or confirmation of additional copper piping charges."
+      },
       "entretien": 299,
       "depannage": 199,
       "entretien_promo": 399
