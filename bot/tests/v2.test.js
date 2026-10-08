@@ -365,3 +365,63 @@ test('confirmed booking is inserted into the shared dashboard intervention table
     assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
     assert.equal(calls.at(-1).sql, 'RELEASE');
 });
+
+test('E2E confirmed appointment and purchase persist intervention, stock decrement, and sale log', async () => {
+    const calls = [];
+    const fakePool = {
+        connect: async () => ({
+            query: async (sql, values) => {
+                calls.push({ sql, values });
+                if (sql.includes('INSERT INTO "InterventionSync"')) return { rowCount: 1, rows: [{ hash: values[0] }] };
+                if (sql.includes('FROM "Technician"')) return { rowCount: 1, rows: [{ name: 'Hamza', phone: '0612345678' }] };
+                if (sql.includes('INSERT INTO "Intervention"')) return { rowCount: 1, rows: [{ reference: values[1], clientName: values[2], clientAddress: values[3], clientContactPhone: values[4], technicianName: values[5], type: values[6], startTime: values[7], problemReported: values[8] }] };
+                if (sql.includes('UPDATE "Inventory"')) return { rowCount: 1, rows: [{ stock_quantity: 0 }] };
+                if (sql.includes('INSERT INTO "SalesLog"')) return { rowCount: 1, rows: [] };
+                return { rowCount: 1, rows: [] };
+            },
+            release: () => calls.push({ sql: 'RELEASE' }),
+        }),
+    };
+    const interventionService = createInterventionService(fakePool);
+    const inventoryService = createInventoryService(fakePool);
+    const llm = async () => { throw new Error('confirmations should be deterministic'); };
+
+    const repairState = {
+        intent: 'repair', stage: 'RECAP', language: 'ar', ask_count: 0,
+        slots: { name: 'E2E Client', address: 'Casa Hay Farah', phone: '+212612345678', symptom: 'ma kayberredch', day: '2026-10-09', time_window_or_hour: '14:30' },
+        flags: {}, last_bot_question_slot: null,
+    };
+    const bookingTurn = await runTurn(llm, repairState, 'wakha', []);
+    assert.equal(bookingTurn.isAppointmentConfirmed, true);
+    const interventionResult = await interventionService.createConfirmedBooking('212612345678@c.us', 'repair', bookingTurn.newState.slots);
+    assert.equal(interventionResult.ok, true);
+
+    const purchaseState = {
+        intent: 'purchase', stage: 'RECAP', language: 'ar', ask_count: 0,
+        slots: { name: 'E2E Client', address: 'Casa Hay Farah', phone: '+212612345678', brand: 'CIAT', btu: '9000_BTU' },
+        flags: { stock_check: { status: 'checked', available: true, can_preorder: false, stock_quantity: 1 } },
+        last_bot_question_slot: null,
+    };
+    const saleTurn = await runTurn(llm, purchaseState, 'wakha', [], '', {
+        confirmSaleAndUpdateStock: inventoryService.confirmSaleAndUpdateStock,
+    });
+    assert.equal(saleTurn.saleResult.ok, true);
+    assert.equal(saleTurn.saleResult.status, 'CONFIRMED');
+
+    const interventionInsert = calls.find(call => call.sql.includes('INSERT INTO "Intervention"'));
+    const inventoryUpdate = calls.find(call => call.sql.includes('UPDATE "Inventory"'));
+    const saleInsert = calls.find(call => call.sql.includes('INSERT INTO "SalesLog"'));
+    assert.ok(interventionInsert, 'dashboard intervention row must be inserted');
+    assert.equal(interventionInsert.values[2], 'E2E Client');
+    assert.equal(interventionInsert.values[3], 'Casa Hay Farah');
+    assert.equal(interventionInsert.values[4], '+212612345678');
+    assert.match(interventionInsert.sql, /'PLANIFIEE'/);
+    assert.ok(inventoryUpdate, 'stock must be decremented after sale confirmation');
+    assert.match(inventoryUpdate.sql, /stock_quantity > 0/);
+    assert.ok(saleInsert, 'sale must be added to SalesLog');
+    assert.equal(saleInsert.values[0], 'CIAT');
+    assert.equal(saleInsert.values[2], 'E2E Client');
+    assert.equal(saleInsert.values[3], '+212612345678');
+    assert.equal(saleInsert.values[4], 'CONFIRMED');
+    assert.equal(calls.filter(call => call.sql === 'COMMIT').length, 2);
+});

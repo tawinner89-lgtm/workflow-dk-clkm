@@ -14,7 +14,7 @@ function clean(val) {
     if (['null','n/a','none','inconnu','slot_name_or_null'].includes(s)) return null;
     return val;
 }
-async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
+async function runTurn(llmFn, state, customerMessage, history, rulesText="", services = {}) {
     state.slots ||= {};
     state.flags ||= {};
     let turnTokens=0;
@@ -95,17 +95,19 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
             action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
         } else if (!state.flags.sale_recorded) {
             const saleOffer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
-            saleResult = await confirmSaleAndUpdateStock(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
+            const confirmSale = services.confirmSaleAndUpdateStock || confirmSaleAndUpdateStock;
+            saleResult = await confirmSale(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
             if (saleResult.ok) {
                 state.flags.sale_recorded = true;
-                action = { type: 'close', reason: saleResult.status === 'PREORDER' ? 'sale_preorder' : 'sale_pending', slots: [] };
+                action = { type: 'close', reason: saleResult.status === 'PREORDER' ? 'sale_preorder' : 'sale_confirmed', slots: [] };
             } else if (saleResult.reason === 'OUT_OF_STOCK') {
                 state.flags.stock_check = await getProductAvailability(state.slots.brand, state.slots.btu);
                 if (state.flags.stock_check.status === 'checked') {
                     state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
                 }
                 if (state.flags.stock_check.can_preorder) {
-                    saleResult = await confirmSaleAndUpdateStock(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
+                    const confirmSale = services.confirmSaleAndUpdateStock || confirmSaleAndUpdateStock;
+                    saleResult = await confirmSale(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
                     if (saleResult.ok) { state.flags.sale_recorded = true; action = { type: 'close', reason: 'sale_preorder', slots: [] }; }
                     else action = { type: 'handoff', reason: 'sale_record_failed', slots: [] };
                 } else if (!state.flags.stock_check.available) action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
@@ -114,7 +116,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
                 action = { type: 'handoff', reason: 'sale_record_failed', slots: [] };
             }
         } else {
-            action = { type: 'close', reason: 'sale_pending', slots: [] };
+            action = { type: 'close', reason: 'sale_confirmed', slots: [] };
         }
     } else {
         action = planner(state, interp);

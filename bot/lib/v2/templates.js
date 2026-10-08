@@ -141,7 +141,7 @@ function formatOfferPrice(offer, locale) {
 function render(state, action) {
     const locale = localeFor(state);
     if (action.type === 'close' && action.reason === 'sale_preorder') return TEMPLATES.close.preorder[locale];
-    if (action.type === 'close' && ['sale_pending', 'booking_confirmed', 'confirmed'].includes(action.reason)) return TEMPLATES.close.confirmed[locale];
+    if (action.type === 'close' && ['sale_pending', 'sale_confirmed', 'booking_confirmed', 'confirmed'].includes(action.reason)) return TEMPLATES.close.confirmed[locale];
     if (action.type === 'silent') return '';
     if (action.type === 'handoff') return TEMPLATES.handoff[locale];
     if (action.type === 'urgency') return TEMPLATES.urgency[locale];
