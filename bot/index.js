@@ -846,6 +846,71 @@ Merci de contacter le client pour confirmer l'heure de visite.`;
             console.error(`[HANDOFF NOTIFICATION ERROR] ${admin}:`, error.message);
         }
     }
+
+    // Confirmed appointments are already written by createConfirmedBooking(); avoid
+    // creating a duplicate when notifyHandoff is used because no technician was found.
+    if (state.reference) return;
+
+    let dbClient;
+    try {
+        if (clientName === 'Non renseigné' || address === 'Non renseignée') {
+            console.warn(`[HANDOFF DB SKIPPED] Missing client name/address for ${userId}`);
+            return;
+        }
+
+        const syncHash = crypto.createHash('sha256').update(JSON.stringify([
+            'handoff', userId, clientName, address, displayPhone, problem,
+            slots.day || state.day || null,
+            slots.time_window_or_hour || state.time_window || null,
+        ])).digest('hex');
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        const reservation = await dbClient.query(
+            `INSERT INTO "InterventionSync" (hash, "createdAt") VALUES ($1, NOW())
+             ON CONFLICT (hash) DO NOTHING RETURNING hash`,
+            [syncHash]
+        );
+        if (reservation.rowCount === 0) {
+            await dbClient.query('COMMIT');
+            return;
+        }
+
+        const dateParts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Africa/Casablanca', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date()).reduce((parts, item) => {
+            if (item.type !== 'literal') parts[item.type] = item.value;
+            return parts;
+        }, {});
+        const reference = `INT-${dateParts.year}${dateParts.month}${dateParts.day}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+        const day = slots.day || state.day || null;
+        const timeWindow = slots.time_window_or_hour || state.time_window || null;
+        const startTime = [day, timeWindow].filter(Boolean).join(' ') || null;
+        const intent = state.intent || reason || 'human_handoff';
+        const serviceType = slots.service_type || state.type || intent;
+
+        await dbClient.query(
+            `INSERT INTO "Intervention" (
+                id, reference, "clientName", "clientContactName", "clientAddress", "clientContactPhone",
+                "technicianName", type, "startTime", "problemReported", status, intent, symptom,
+                day, time_window, "syncHash", "createdAt", "updatedAt"
+            ) VALUES (
+                $1, $2, $3, $3, $4, $5, 'A assigner (Bot)', $6, $7, $8,
+                'PLANIFIEE', $9, $10, $11, $12, $13, NOW(), NOW()
+            )`,
+            [
+                crypto.randomUUID(), reference, clientName, address, displayPhone,
+                String(serviceType), startTime, String(problem), String(intent),
+                slots.symptom || state.symptom || null, day, timeWindow, syncHash,
+            ]
+        );
+        await dbClient.query('COMMIT');
+        console.log(`[HANDOFF DB SAVED] ${reference} for ${userId}`);
+    } catch (error) {
+        try { await dbClient?.query('ROLLBACK'); } catch (_) {}
+        console.error('[HANDOFF DB INSERT ERROR]', error.message);
+    } finally {
+        dbClient?.release();
+    }
 }
 
 const lastMediaReply = new Map();
