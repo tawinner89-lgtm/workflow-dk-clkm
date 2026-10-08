@@ -31,7 +31,7 @@ const BUSINESS_RULES_TEXT = JSON.stringify(require("../shared/business.json"), n
 // Constants & Configuration
 // ---------------------------------------------------------
 const BOT_WATERMARK = "\u200B";
-const MEDIA_AUTO_REPLY = "Merci pour votre fichier. Notre service client l'analysera et vous répondra dans les plus brefs délais. 📞 شكراً على إرسالك. فريق خدمة العملاء سيقوم بالرد عليك في أقرب وقت. 📞";
+const MEDIA_AUTO_REPLY = "Merci pour votre message. Notre service client l'examinera et vous répondra dans les plus brefs délais. 📞 شكراً على رسالتك. سيقوم فريق خدمة العملاء بالرد عليك في أقرب وقت. 📞";
 
 // Phone Normalization Utilities
 function getRawPhone(phoneOrId) {
@@ -1336,7 +1336,7 @@ client.on("message", async (msg) => {
                 ? " Votre demande d’installation a aussi été transmise à notre équipe."
                 : v2Result.newState.language === 'ar-script'
                   ? " كما أرسلنا طلب التركيب إلى فريقنا."
-                  : " W talab tarkib tsift l'équipe dyalna bach yns9o m3ak.";
+                  : " كما أرسلنا طلب التركيب إلى فريقنا للتواصل معك.";
               reply += installConfirmation;
             } else {
               console.error('[PURCHASE INSTALLATION NOT SAVED]', installationResult.reason || installationResult.error || 'unknown');
@@ -1353,7 +1353,7 @@ client.on("message", async (msg) => {
               return;
           } else {
               console.error("[EMPTY-GUARD] AI returned empty on a non-silent action. Falling back to default greeting.");
-              reply = "Salam, marhaba bik f DK Clim ! Kifach n9der n3awnek lyouma? (Réparation, Entretien, Installation, Achat)";
+              reply = "مرحباً بك في DK Clim! كيف يمكننا مساعدتك اليوم؟ يمكننا مساعدتك في شراء المكيفات وتركيبها وصيانتها وإصلاحها.";
           }
         }
 

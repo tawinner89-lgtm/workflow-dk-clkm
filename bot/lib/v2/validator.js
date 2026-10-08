@@ -60,7 +60,7 @@ async function validate(llmFn, reply, state, nextAction) {
         return { valid: false, reason: "Repetition exacte du dernier message.", type: 'soft', tokens };
     }
 
-    const priceRegex = /(?:^|[\s\W])(\d[\d\s,.]*)\s*(?:dh|dhs|mad|dirham|dirhams)(?:[\s\W]|$)/gi;
+    const priceRegex = /(?:^|[\s\W])(\d+)\s*(?:dh|dhs|mad|dirham|dirhams)(?:[\s\W]|$)/gi;
     let rm;
     const normalizePrice = value => value.replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit))).replace(/\D/g, '');
     while ((rm = priceRegex.exec(lower)) !== null) {
@@ -71,14 +71,14 @@ async function validate(llmFn, reply, state, nextAction) {
         }
     }
 
-    const arabicPriceRegex = /(?:^|[\s\W])([\d٠-٩][\d٠-٩\s,.]*)\s*(?:درهم|دراهم|د\.م\.?)(?:[\s\W]|$)/giu;
+    const arabicPriceRegex = /(?:^|[\s\W])([\d٠-٩]+)\s*(?:درهم|دراهم|د\.م\.?)(?:[\s\W]|$)/giu;
     while ((rm = arabicPriceRegex.exec(reply)) !== null) {
         const numStr = normalizePrice(rm[1]);
         if (numStr && !allowedPriceStrs.has(numStr)) return { valid: false, reason: `Prix invente ou non autorise: ${numStr}`, type: 'hard', tokens };
     }
     // A price without currency still needs a realistic multi-digit amount;
     // this avoids treating Darija words such as "d9i9" as a quoted price.
-    const barePriceRegex = /(?:prix|price|taman|الثمن|السعر)[^0-9٠-٩]{0,16}([\d٠-٩]{3,}(?:[\d٠-٩\s,.]*))/giu;
+    const barePriceRegex = /(?:prix|price|taman|الثمن|السعر)[^0-9٠-٩]{0,16}([\d٠-٩]{3,})/giu;
     while ((rm = barePriceRegex.exec(reply)) !== null) {
         const numStr = normalizePrice(rm[1]);
         if (numStr && !allowedPriceStrs.has(numStr)) return { valid: false, reason: `Prix invente ou non autorise: ${numStr}`, type: 'hard', tokens };

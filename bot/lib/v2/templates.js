@@ -95,9 +95,9 @@ const TEMPLATES = {
         arabic: "يبدو أن الأمر طارئ. سأبلغ فريقنا ليتواصل معك سريعاً."
     },
     media_fallback: {
-        fr: "Merci pour le fichier. Notre équipe va l'examiner et vous répondre.",
+        fr: "Merci pour votre message. Notre équipe va l'examiner et vous répondre.",
         ar: "Chokran 3la lfile. L'équipe ghadi tchoufou w tjawbek.",
-        arabic: "شكراً على الملف. سيفحصه فريقنا ويرد عليك."
+        arabic: "شكراً على رسالتك. سيقوم فريقنا بمراجعتها والرد عليك."
     },
     out_of_scope: {
         fr: "Je peux vous aider pour la vente, la réparation, l'entretien et l'installation de climatiseurs.",
@@ -119,7 +119,7 @@ const TEMPLATES = {
 };
 
 function localeFor(state) {
-    return state.language === 'fr' ? 'fr' : state.language === 'ar-script' ? 'arabic' : 'ar';
+    return state.language === 'fr' ? 'fr' : 'arabic';
 }
 
 function getOffers(brand, btu) {
@@ -165,7 +165,7 @@ function purchaseDetailsQuestion(state, locale, offer) {
     }[locale];
     const details = missing.map(slot => labels[slot]);
     if (locale === 'fr') return `${installQuote} Pour finaliser, indiquez ${details.join(', ')} s'il vous plaît.`;
-    if (locale === 'arabic') return `${installQuote} لإتمام الطلب، أرسل ${details.join('، ')} من فضلك.`;
+    if (locale === 'arabic') return `${installQuote} لإتمام الطلب، أرسل ${details.join('، ')} من فضلك؟`;
     return `${installQuote} Bach nkemlo lcommande, momkin tsift lina ${details.join(', ')} 3afak?`;
 }
 

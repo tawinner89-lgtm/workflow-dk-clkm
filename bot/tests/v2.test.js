@@ -155,7 +155,7 @@ test('lost buyer is asked room area and budget together', async () => {
     assert.equal(result.is_lost, true);
     const action = planner(state, result);
     assert.deepEqual(action, { type: 'ask', reason: 'recommendation_group', slots: ['recommendation_group'] });
-    assert.match(render({ language: 'ar' }, action), /surface.*budget/i);
+    assert.match(render({ language: 'ar' }, action), /مساحة.*ميزاني/);
     assert.equal(state.intent, 'purchase');
 });
 
@@ -164,9 +164,9 @@ test('CIAT 9000 price and stock answer never re-asks for budget', () => {
     const action = planner(state, { question_asked: 'price', slot_updates: {} });
     assert.equal(action.reason, 'purchase_price_booking');
     const reply = render(state, action);
-    assert.match(reply, /3800 DH TTC/);
+    assert.match(reply, /3800 درهم/);
     assert.doesNotMatch(reply, /1 f stock|1 en stock/i);
-    assert.match(reply, /smiytek.*numra.*adresse/i);
+    assert.match(reply, /اسمك الكامل.*رقم هاتفك.*المدينة والحي/);
     assert.doesNotMatch(reply, /budget/i);
 });
 
@@ -182,7 +182,7 @@ test('catalog prices match the supplied TTC list and Carrier stores normal and p
 test('TCL 9000 Gris quote uses its exact variant price', () => {
     const state = { intent: 'purchase', language: 'ar', slots: { brand: 'TCL', btu: '9000_BTU', model_variant: 'Gris ON/OFF' }, flags: { stock_check: { status: 'checked', available: true, stock_quantity: 1 } } };
     const reply = render(state, { type: 'answer_question', reason: 'purchase_price_booking', slots: ['price'] });
-    assert.match(reply, /3200 DH TTC/);
+    assert.match(reply, /3200 درهم/);
     assert.doesNotMatch(reply, /3500|3700/);
 });
 
@@ -219,7 +219,7 @@ test('headquarters questions are recognized and answered with Casablanca plus na
     assert.match(WRITER_SYSTEM_PROMPT, /throughout Morocco/i);
     assert.match(WRITER_SYSTEM_PROMPT, /city and neighborhood/i);
     assert.match(WRITER_SYSTEM_PROMPT, /Partout au Maroc/i);
-    assert.match(render({ language: 'ar' }, { type: 'answer_question', slots: ['company'] }), /Casablanca/);
+    assert.match(render({ language: 'ar' }, { type: 'answer_question', slots: ['company'] }), /الدار البيضاء/);
     assert.match(render({ language: 'ar-script' }, { type: 'answer_question', slots: ['company'] }), /الدار البيضاء/);
 
     const arabicQuestion = await interpret(async () => ({ text: '{"intent_change":"purchase","question_asked":"availability","slot_updates":{}}', tokens: 0 }), {
@@ -249,11 +249,21 @@ test('booking asks never expose hallucinated booking-group fields', async () => 
     assert.doesNotMatch(result.text, /group|groupe|booking/i);
 });
 
-test('fixed replies follow French, Darija Latin, and Arabic-script language selection', () => {
+test('fixed replies use French for French clients and Arabic script for Darija clients', () => {
     const action = { type: 'ask', slots: ['btu'] };
     assert.match(render({ language: 'fr' }, action), /^Quelle puissance/);
-    assert.match(render({ language: 'ar' }, action), /^Ch7al/);
+    assert.match(render({ language: 'ar' }, action), /^[\u0600-\u06ff]/u);
     assert.match(render({ language: 'ar-script' }, action), /[\u0600-\u06ff]/u);
+    assert.match(render({ language: 'darija' }, action), /^[\u0600-\u06ff]/u);
+});
+
+test('media acknowledgement says message rather than file in French and Arabic', () => {
+    const reply = render({ language: 'ar' }, { type: 'media_fallback' });
+    assert.match(reply, /رسالتك/);
+    assert.doesNotMatch(reply, /الملف/);
+    const handler = fs.readFileSync(path.resolve(__dirname, '..', 'index.js'), 'utf8');
+    assert.match(handler, /Merci pour votre message/);
+    assert.doesNotMatch(handler, /Merci pour votre fichier/);
 });
 
 test('clear purchase opener uses the fast path and identifies the default Darija language', async () => {
@@ -307,7 +317,7 @@ test('booking-group free text keeps name and address and asks only for a valid p
     assert.equal(result.newState.slots.phone, undefined);
     assert.equal(result.newState.flags.invalid_phone, true);
     assert.equal(result.nextAction.slots[0], 'phone');
-    assert.match(result.reply, /10 ar9am.*0612345678/i);
+    assert.match(result.reply, /10 أرقام.*0612345678/);
     assert.doesNotMatch(result.reply, /othman|casablanca|l'adresse|smiytek/i);
     assert.doesNotMatch(result.reply, /1 f stock|1 en stock/i);
 });
@@ -339,9 +349,9 @@ test('purchase with installation remains a sale and collects installation appoin
     assert.equal(result.newState.intent, 'purchase');
     assert.equal(result.newState.slots.install_mode, 'purchase_with_installation');
     assert.equal(result.nextAction.reason, 'booking_group');
-    assert.match(result.reply, /499 DH TTC/);
+    assert.match(result.reply, /499 درهم/);
     assert.doesNotMatch(result.reply, /1 f stock|1 en stock/i);
-    assert.match(result.reply, /nhar li ynasbek l tarkib/i);
+    assert.match(result.reply, /اليوم المناسب للتركيب/);
 
     const installationState = {
         intent: 'purchase', stage: 'COLLECT', ask_count: 0,
@@ -367,7 +377,7 @@ test('choosing to buy from DK during installation preserves install mode and req
     assert.equal(result.newState.intent, 'purchase');
     assert.equal(result.newState.slots.install_mode, 'purchase_with_installation');
     assert.equal(result.nextAction.reason, 'booking_group');
-    assert.match(result.reply, /nhar li ynasbek l tarkib/i);
+    assert.match(result.reply, /اليوم المناسب للتركيب/);
 
     const appointmentState = {
         intent: 'purchase', stage: 'COLLECT', ask_count: 0,
@@ -474,8 +484,8 @@ test('purchase booking_group asks only for missing client details and ends with 
     };
     const result = await runTurn(async () => ({ text: '{"slot_updates":{"brand":"CIAT"}}', tokens: 1 }), state, 'CIAT', []);
     assert.equal(result.nextAction.reason, 'booking_group');
-    assert.match(result.reply, /\?$/);
-    assert.match(result.reply, /smiytek.*numra dyal telephone.*lmdina w l7ay/i);
+    assert.match(result.reply, /[?؟]$/);
+    assert.match(result.reply, /اسمك الكامل.*رقم هاتفك.*المدينة والحي/);
     assert.doesNotMatch(result.reply, /booking group|group name|nhar\/waqt|livraison/i);
     assert.notEqual(result.nextAction.type, 'handoff');
 });
@@ -485,7 +495,7 @@ test('purchase message with a brand but no numeric BTU asks for BTU instead of h
     const result = await runTurn(async () => ({ text: '{"slot_updates":{"brand":"CIAT"}}', tokens: 1 }), state, 'Bghit nchri CIAT BTU', []);
     assert.equal(result.nextAction.type, 'ask');
     assert.equal(result.nextAction.slots[0], 'btu');
-    assert.match(result.reply, /\?/);
+    assert.match(result.reply, /[?؟]/);
 });
 
 test('labeled click-to-WhatsApp ad form text deterministically extracts its lead fields', async () => {
@@ -533,14 +543,14 @@ test('handoff state resumes on a new greeting or client information instead of g
     const greetingState = { intent: null, stage: 'HANDOFF', language: 'fr', slots: {}, flags: {}, ask_count: 0 };
     const greeting = await runTurn(async () => { throw new Error('simple greeting should not call provider'); }, greetingState, 'Salam', []);
     assert.notEqual(greeting.nextAction.type, 'silent');
-    assert.match(greeting.reply, /acheter|techri|réparation|tarkib/i);
+    assert.match(greeting.reply, /شراء|إصلاح|تركيب/);
 
     const followup = planner(
         { intent: 'purchase', stage: 'HANDOFF', slots: {}, flags: {}, ask_count: 0 },
         { slot_updates: {}, intent_change: null, question_asked: null, greeting: false }
     );
     assert.equal(followup.type, 'handoff_followup');
-    assert.match(render({ language: 'ar' }, followup), /deja 3nd l'équipe/i);
+    assert.match(render({ language: 'ar' }, followup), /تمت إحالة طلبك/);
 });
 
 test('a price question after handoff is answered through the active purchase flow', async () => {
@@ -570,9 +580,8 @@ test('purchase with installation states the copper condition without asking a se
         flags: { stock_check: { status: 'checked', available: true, can_preorder: false } },
     };
     const reply = render(state, { type: 'ask', reason: 'booking_group', slots: ['booking_group'] });
-    assert.match(reply, /Tarkib kayn b 499 DH TTC \(ila kan n7as dayz\)/);
-    assert.match(reply, /Hada thaman l’installasyon li 3andna f tarif/);
-    assert.doesNotMatch(reply, /Wach n7as dayz/);
+    assert.match(reply, /التركيب بـ 499 درهم شامل الضريبة إذا كانت أنابيب النحاس مركبة مسبقاً/);
+    assert.doesNotMatch(reply, /هل أنابيب النحاس مركبة/);
     const validation = await validate(null, reply, state, { type: 'ask' });
     assert.equal(validation.valid, true);
 });
@@ -584,8 +593,8 @@ test('purchase price response keeps the installation condition in the details pr
         flags: { stock_check: { status: 'checked', available: true, can_preorder: false } },
     };
     const reply = render(state, { type: 'answer_question', reason: 'purchase_price_booking', slots: ['price'] });
-    assert.match(reply, /Tarkib kayn b 499 DH TTC \(ila kan n7as dayz\)/);
-    assert.doesNotMatch(reply, /Wach n7as dayz/);
+    assert.match(reply, /التركيب بـ 499 درهم شامل الضريبة إذا كانت أنابيب النحاس مركبة مسبقاً/);
+    assert.doesNotMatch(reply, /هل أنابيب النحاس مركبة/);
 });
 
 
@@ -609,7 +618,7 @@ test('a client yes after a complete service recap confirms and queues an interve
     const result = await runTurn(async () => { throw new Error('confirmation should use deterministic path'); }, state, 'wakha', []);
     assert.equal(result.isAppointmentConfirmed, true);
     assert.deepEqual(result.nextAction, { type: 'close', reason: 'booking_confirmed', slots: [] });
-    assert.match(result.reply, /talab dyalek tsjjel/i);
+    assert.match(result.reply, /تم تسجيل طلبك/);
 });
 
 test('confirmed booking is inserted into the shared dashboard intervention table and assigned', async () => {
