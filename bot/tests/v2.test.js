@@ -270,6 +270,29 @@ test('inventory records a zero-stock request as PREORDER without decrementing st
     assert.equal(calls.at(-1).sql, 'RELEASE');
 });
 
+test('confirmed sale decrements stock and writes CONFIRMED sales log in one transaction', async () => {
+    const calls = [];
+    const fakePool = {
+        connect: async () => ({
+            query: async (sql, values) => {
+                calls.push({ sql, values });
+                if (sql.includes('UPDATE "Inventory"')) return { rowCount: 1, rows: [{ stock_quantity: 0 }] };
+                return { rowCount: 1, rows: [] };
+            },
+            release: () => calls.push({ sql: 'RELEASE' }),
+        }),
+    };
+    const inventory = createInventoryService(fakePool);
+    const result = await inventory.confirmSaleAndUpdateStock('Test Client', '+212612345678', 'Carrier', '9000_BTU', 4399);
+    assert.deepEqual(result, { ok: true, stockUpdated: true, status: 'CONFIRMED' });
+    assert.equal(calls[0].sql, 'BEGIN');
+    assert.match(calls.find(call => call.sql.includes('UPDATE "Inventory"')).sql, /stock_quantity > 0/);
+    const saleInsert = calls.find(call => call.sql.includes('INSERT INTO "SalesLog"'));
+    assert.deepEqual(saleInsert.values, ['Carrier', '9000_BTU', 'Test Client', '+212612345678', 'CONFIRMED', 'Prix catalogue: 4399 DH']);
+    assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
+    assert.equal(calls.at(-1).sql, 'RELEASE');
+});
+
 test('availability distinguishes a zero quantity as eligible for preorder', async () => {
     const inventory = createInventoryService({
         query: async () => ({ rows: [{ brand: 'Carrier', btu: '9000_BTU', stock_quantity: 0 }] }),

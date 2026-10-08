@@ -4,7 +4,7 @@ const { planner } = require('./planner');
 const { writeReply } = require('./writer');
 const { validate } = require('./validator');
 const { render } = require('./templates');
-const { recordSale, getProductAvailability, getCurrentStock } = require('../../src/services/inventory');
+const { confirmSaleAndUpdateStock, getProductAvailability, getCurrentStock } = require('../../src/services/inventory');
 const business = require('../../../shared/business.json');
 const { normalizeIntent } = require('./intent');
 const { getOffer } = require('./templates');
@@ -95,7 +95,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
             action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };
         } else if (!state.flags.sale_recorded) {
             const saleOffer = getOffer(state.slots.brand, state.slots.btu, state.slots.model_variant);
-            saleResult = await recordSale(state.slots.brand, state.slots.btu, state.slots.name, state.slots.phone, saleOffer?.prix_promo);
+            saleResult = await confirmSaleAndUpdateStock(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
             if (saleResult.ok) {
                 state.flags.sale_recorded = true;
                 action = { type: 'close', reason: saleResult.status === 'PREORDER' ? 'sale_preorder' : 'sale_pending', slots: [] };
@@ -105,7 +105,7 @@ async function runTurn(llmFn, state, customerMessage, history, rulesText="") {
                     state.flags.stock_check.alternatives = state.flags.stock_check.alternatives.filter(product => getOffer(product.brand, product.btu));
                 }
                 if (state.flags.stock_check.can_preorder) {
-                    saleResult = await recordSale(state.slots.brand, state.slots.btu, state.slots.name, state.slots.phone, saleOffer?.prix_promo);
+                    saleResult = await confirmSaleAndUpdateStock(state.slots.name, state.slots.phone, state.slots.brand, state.slots.btu, saleOffer?.prix_promo);
                     if (saleResult.ok) { state.flags.sale_recorded = true; action = { type: 'close', reason: 'sale_preorder', slots: [] }; }
                     else action = { type: 'handoff', reason: 'sale_record_failed', slots: [] };
                 } else if (!state.flags.stock_check.available) action = { type: 'ask', reason: 'alternative_brand', slots: ['brand'] };

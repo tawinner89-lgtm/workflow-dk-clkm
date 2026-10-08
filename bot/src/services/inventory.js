@@ -31,7 +31,7 @@ function createInventoryService(dbPool) {
     }
   }
 
-  async function recordSale(brand, btu, customerName, customerPhone, price = null) {
+  async function createSale(brand, btu, customerName, customerPhone, price, saleStatus) {
     let client;
     const normalizedBtu = normalizeBtu(btu);
     if (!brand || !normalizedBtu) {
@@ -54,11 +54,11 @@ function createInventoryService(dbPool) {
       );
       if (update.rowCount > 0) {
         await client.query(
-          `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes) VALUES ($1, $2, $3, $4, 'PENDING', $5)`,
-          [brand, normalizedBtu, customerName || null, customerPhone || null, price ? `Prix catalogue: ${price} DH` : null]
+          `INSERT INTO "SalesLog" (brand, btu, customer_name, customer_phone, status, notes) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [brand, normalizedBtu, customerName || null, customerPhone || null, saleStatus, price ? `Prix catalogue: ${price} DH` : null]
         );
         await client.query('COMMIT');
-        return { ok: true, stockUpdated: true, status: 'PENDING' };
+        return { ok: true, stockUpdated: true, status: saleStatus };
       }
 
       const check = await client.query(
@@ -79,6 +79,17 @@ function createInventoryService(dbPool) {
     } finally {
       client?.release();
     }
+  }
+
+  // Bot-originated sale is finalized only after the customer confirms the recap.
+  // Stock decrement and SalesLog insert share one transaction.
+  async function confirmSaleAndUpdateStock(clientName, clientPhone, model, btu, price = null) {
+    return createSale(model, btu, clientName, clientPhone, price, 'CONFIRMED');
+  }
+
+  // Keep the pending-sale API for existing callers that require dashboard approval.
+  async function recordSale(brand, btu, customerName, customerPhone, price = null) {
+    return createSale(brand, btu, customerName, customerPhone, price, 'PENDING');
   }
 
   async function cancelSale(saleId) {
@@ -118,7 +129,7 @@ function createInventoryService(dbPool) {
     catch (error) { console.error('[INVENTORY ERROR getCurrentStock]', error.message); return []; }
   }
 
-  return { getProductAvailability, recordSale, cancelSale, confirmSale, getCurrentStock };
+  return { getProductAvailability, recordSale, confirmSaleAndUpdateStock, cancelSale, confirmSale, getCurrentStock };
 }
 
 module.exports = { ...createInventoryService(pool), createInventoryService, normalizeBtu };
