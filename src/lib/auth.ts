@@ -1,8 +1,13 @@
-﻿import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretStr = process.env.JWT_SECRET || 'dkclim-dev-secret-fallback';
-const JWT_SECRET = new TextEncoder().encode(secretStr);
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be configured in production.');
+  }
+  return new TextEncoder().encode(secret || 'dkclim-local-development-only');
+}
 
 export type SessionPayload = 
   | { role: 'ADMIN' }
@@ -13,7 +18,7 @@ export async function createSession(payload: SessionPayload) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
     
   cookies().set('auth_session', token, {
     httpOnly: true,
@@ -29,7 +34,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   
   try {
-    const verified = await jwtVerify(token, JWT_SECRET);
+    const verified = await jwtVerify(token, getJwtSecret());
     return verified.payload as SessionPayload;
   } catch {
     return null;

@@ -3,10 +3,23 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { recordManualSale } from '@/app/actions';
+type InventoryOption = { id: number; brand: string; btu: string; ac_type: string; stock_quantity: number };
 
-export default function NewSaleModal() {
+function unique(values: string[]) {
+  return values.filter((value, index) => values.indexOf(value) === index);
+}
+
+export default function NewSaleModal({ inventory = [] }: { inventory?: InventoryOption[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const availableProducts = inventory.filter((item) => item.stock_quantity > 0);
+  const brands = unique(availableProducts.map((item) => item.brand)).sort();
+  const [brand, setBrand] = useState('');
+  const [btu, setBtu] = useState('');
+  const [acType, setAcType] = useState('');
+  const productsForBrand = availableProducts.filter((item) => item.brand === brand);
+  const btus = unique(productsForBrand.map((item) => item.btu));
+  const typesForBtu = unique(productsForBrand.filter((item) => item.btu === btu).map((item) => item.ac_type));
 
   async function handleSubmit(formData: FormData) {
     if (isSubmitting) return;
@@ -14,8 +27,8 @@ export default function NewSaleModal() {
     try {
       await recordManualSale(formData);
       setIsOpen(false);
-    } catch (err: any) {
-      alert(err.message || "Erreur d'autorisation");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erreur d'autorisation");
     } finally {
       setIsSubmitting(false);
     }
@@ -47,23 +60,33 @@ export default function NewSaleModal() {
             <form action={handleSubmit} className="p-6 space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Marque</label>
-                <select name="brand" required className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
-                  <option value="">Selectionnez une marque...</option>
-                  <option value="Carrier">Carrier</option>
-                  <option value="CIAT">CIAT</option>
-                  <option value="Daikool">Daikool</option>
-                  <option value="TCL">TCL</option>
+                <select name="brand" required value={brand} onChange={(event) => {
+                  const nextBrand = event.target.value;
+                  const first = availableProducts.find((item) => item.brand === nextBrand);
+                  setBrand(nextBrand); setBtu(first?.btu || ''); setAcType(first?.ac_type || '');
+                }} className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
+                  <option value="">{brands.length ? 'Selectionnez une marque...' : 'Aucun produit en stock'}</option>
+                  {brands.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </div>
               
               <div className="space-y-1">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Puissance (BTU)</label>
-                <select name="btu" required className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
+                <select name="btu" required value={btu} onChange={(event) => {
+                  const nextBtu = event.target.value;
+                  const first = productsForBrand.find((item) => item.btu === nextBtu);
+                  setBtu(nextBtu); setAcType(first?.ac_type || '');
+                }} className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
                   <option value="">Selectionnez la puissance...</option>
-                  <option value="9000_BTU">9000 BTU</option>
-                  <option value="12000_BTU">12000 BTU</option>
-                  <option value="18000_BTU">18000 BTU</option>
-                  <option value="24000_BTU">24000 BTU</option>
+                  {btus.map((option) => <option key={option} value={option}>{option.replace('_', ' ')}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Type</label>
+                <select name="ac_type" required value={acType} onChange={(event) => setAcType(event.target.value)} className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
+                  <option value="">Selectionnez un type...</option>
+                  {typesForBtu.map((type) => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
 
@@ -78,7 +101,7 @@ export default function NewSaleModal() {
               </div>
 
               <div className="pt-4">
-                <button type="submit" disabled={isSubmitting} className="w-full bg-slate-900 text-white rounded-xl p-3 text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm">
+                <button type="submit" disabled={isSubmitting || availableProducts.length === 0} className="w-full bg-slate-900 text-white rounded-xl p-3 text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm">
                   {isSubmitting ? "Enregistrement..." : "Enregistrer la vente"}
                 </button>
               </div>

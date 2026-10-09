@@ -1,10 +1,15 @@
-﻿/** @type {import('next').NextConfig} */
+/** @type {import('next').NextConfig} */
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import nextEnv from '@next/env';
+
+const dashboardDir = path.dirname(fileURLToPath(import.meta.url));
+nextEnv.loadEnvConfig(path.resolve(dashboardDir, '..'));
+
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
+  experimental: {
+    externalDir: true,
+    outputFileTracingRoot: path.resolve(dashboardDir, '..'),
   },
 };
 

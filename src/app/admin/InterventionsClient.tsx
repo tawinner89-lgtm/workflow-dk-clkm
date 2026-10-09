@@ -1,7 +1,7 @@
-﻿
+
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Download, RefreshCw, FileText, CheckCircle, XCircle, Search, Plus, X, Trash2, Edit, Users, MessageCircle, Bell } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -64,16 +64,16 @@ export default function InterventionsClient() {
 
   // Admin Auth State
   const [isAdminAuthed, setIsAdminAuthed] = useState(false);
-  const forceLogout = () => {
+  const forceLogout = useCallback(() => {
     localStorage.removeItem('adminToken');
     setIsAdminAuthed(false);
     window.location.reload();
-  };
+  }, []);
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  const fetchTechs = async () => {
+  const fetchTechs = useCallback(async () => {
     try {
       const res = await fetch('/api/technicians', { cache: 'no-store' });
       const json = await res.json();
@@ -81,7 +81,7 @@ export default function InterventionsClient() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
   const handleSubmitTech = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,7 +196,7 @@ export default function InterventionsClient() {
     }
   };
 
-  const fetchInterventions = async () => {
+  const fetchInterventions = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
@@ -240,7 +240,7 @@ export default function InterventionsClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [forceLogout]);
 
   useEffect(() => {
     if (localStorage.getItem('adminToken') === 'dkclim-authed') {
@@ -250,7 +250,7 @@ export default function InterventionsClient() {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [fetchInterventions, fetchTechs]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();

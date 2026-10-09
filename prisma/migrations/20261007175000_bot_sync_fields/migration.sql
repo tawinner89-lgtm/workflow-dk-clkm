@@ -1,0 +1,27 @@
+ALTER TABLE "Intervention"
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "intent" TEXT,
+  ADD COLUMN IF NOT EXISTS "symptom" TEXT,
+  ADD COLUMN IF NOT EXISTS "ac_type" TEXT,
+  ADD COLUMN IF NOT EXISTS "units" INTEGER,
+  ADD COLUMN IF NOT EXISTS "brand" TEXT,
+  ADD COLUMN IF NOT EXISTS "btu" TEXT,
+  ADD COLUMN IF NOT EXISTS "budget" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "room_area" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "day" TEXT,
+  ADD COLUMN IF NOT EXISTS "time_window" TEXT;
+ALTER TABLE "Intervention"
+  ADD COLUMN IF NOT EXISTS "syncHash" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "Intervention_syncHash_key" ON "Intervention"("syncHash");
+
+ALTER TABLE "Technician"
+  ADD COLUMN IF NOT EXISTS "isAvailable" BOOLEAN NOT NULL DEFAULT TRUE;
+
+CREATE INDEX IF NOT EXISTS "Intervention_createdAt_idx" ON "Intervention"("createdAt");
+CREATE INDEX IF NOT EXISTS "Intervention_technicianName_status_idx" ON "Intervention"("technicianName", "status");
+
+CREATE TABLE IF NOT EXISTS "InterventionSync" (
+  "hash" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "InterventionSync_pkey" PRIMARY KEY ("hash")
+);

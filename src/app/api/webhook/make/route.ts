@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
@@ -35,9 +35,20 @@ export async function POST(request: Request) {
       clientContactPhone, 
       problemReported, 
       type,
+      intent,
+      symptom,
+      ac_type,
+      units,
+      brand,
+      btu,
+      budget,
+      room_area,
+      day,
+      time_window,
       technicianName,
       proposedTime,
-      reference: providedReference
+      reference: providedReference,
+      syncHash
     } = body;
 
     // Validate required fields
@@ -45,10 +56,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Nom et adresse du client obligatoires' }, { status: 400 });
     }
 
-    if (providedReference) {
-      const existing = await prisma.intervention.findUnique({
-        where: { reference: providedReference }
-      });
+    const existing = providedReference
+      ? await prisma.intervention.findUnique({ where: { reference: providedReference } })
+      : syncHash
+        ? await prisma.intervention.findUnique({ where: { syncHash: String(syncHash) } })
+        : null;
+    if (existing) {
       if (existing) {
         const intervention = await prisma.intervention.update({
           where: { reference: providedReference },
@@ -58,7 +71,17 @@ export async function POST(request: Request) {
             clientContactPhone: clientContactPhone ? String(clientContactPhone).trim() : '',
             problemReported: problemReported ? String(problemReported).trim() : '',
             type: type ? String(type).trim() : 'Maintenance',
-            startTime: proposedTime ? String(proposedTime).trim() : existing.startTime
+            startTime: proposedTime ? String(proposedTime).trim() : existing.startTime,
+            intent: intent ? String(intent) : undefined,
+            symptom: symptom ? String(symptom) : undefined,
+            ac_type: ac_type ? String(ac_type) : undefined,
+            units: Number.isInteger(Number(units)) ? Number(units) : undefined,
+            brand: brand ? String(brand) : undefined,
+            btu: btu ? String(btu) : undefined,
+            budget: Number.isFinite(Number(budget)) && budget !== null ? Number(budget) : undefined,
+            room_area: Number.isFinite(Number(room_area)) && room_area !== null ? Number(room_area) : undefined,
+            day: day ? String(day) : undefined,
+            time_window: time_window ? String(time_window) : undefined,
           }
         });
         return NextResponse.json({ success: true, data: intervention, updated: true });
@@ -66,9 +89,11 @@ export async function POST(request: Request) {
     }
 
     // Generate Reference: INT-YYYYMMDD-RANDOM (e.g., INT-20260826-A1B2)
-    const date = new Date();
-    const dateString = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const dateParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Casablanca', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const dateString = `${dateParts.find(part => part.type === 'year')?.value}${dateParts.find(part => part.type === 'month')?.value}${dateParts.find(part => part.type === 'day')?.value}`;
+    const randomStr = crypto.randomBytes(2).toString('hex').toUpperCase();
     const reference = `INT-${dateString}-${randomStr}`;
 
     // Create the intervention
@@ -82,7 +107,18 @@ export async function POST(request: Request) {
         type: type ? String(type).trim() : 'Maintenance',
         technicianName: technicianName ? String(technicianName).trim() : '? assigner (Bot)',
         status: 'PLANIFIEE',
-        startTime: proposedTime ? String(proposedTime).trim() : null
+        startTime: proposedTime ? String(proposedTime).trim() : null,
+        syncHash: syncHash ? String(syncHash) : null,
+        intent: intent ? String(intent) : null,
+        symptom: symptom ? String(symptom) : null,
+        ac_type: ac_type ? String(ac_type) : null,
+        units: Number.isInteger(Number(units)) && units !== null ? Number(units) : null,
+        brand: brand ? String(brand) : null,
+        btu: btu ? String(btu) : null,
+        budget: Number.isFinite(Number(budget)) && budget !== null ? Number(budget) : null,
+        room_area: Number.isFinite(Number(room_area)) && room_area !== null ? Number(room_area) : null,
+        day: day ? String(day) : null,
+        time_window: time_window ? String(time_window) : null,
       }
     });
 

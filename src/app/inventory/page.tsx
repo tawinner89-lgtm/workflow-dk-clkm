@@ -1,14 +1,20 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'DK CLIM - Inventaire & Ventes' };
 import { prisma } from '@/lib/prisma';
 import GroupedInventory from '@/components/GroupedInventory';
 import NewSaleModal from '@/components/NewSaleModal';
 import AddProductModal from '@/components/AddProductModal';
+import StockExportButton from '@/components/StockExportButton';
 import { confirmPendingSale, cancelPendingSale } from '@/app/actions';
 import { Check, X, PackageOpen, History, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export default async function InventoryPage() {
+  const session = await getSession();
+  if (session?.role !== 'ADMIN') redirect('/admin');
+
   const inventory = await prisma.inventory.findMany({
     orderBy: [{ brand: 'asc' }, { btu: 'asc' }]
   });
@@ -17,6 +23,7 @@ export default async function InventoryPage() {
     orderBy: { timestamp: 'desc' },
     take: 50,
   });
+  const additions = await prisma.stockAddition.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 sm:p-10 font-sans text-slate-900 dark:text-slate-100">
@@ -34,7 +41,7 @@ export default async function InventoryPage() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Inventaire & Ventes</h1>
             <p className="text-sm text-slate-500 font-medium mt-1">Gestion des stocks et confirmation des ventes WhatsApp</p>
           </div>
-          <div className="flex gap-3"><AddProductModal /><NewSaleModal /></div>
+          <div className="flex gap-3"><StockExportButton /><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></div>
         </div>
       </header>
 
@@ -81,7 +88,8 @@ export default async function InventoryPage() {
                       </td>
                       <td className="py-4 px-5">
                         <div className="font-medium text-slate-900 dark:text-white">{sale.brand || "-"}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">{sale.btu?.replace('_', ' ')}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{sale.btu?.replace('_', ' ')} · {sale.ac_type}</div>
+                        {(sale as typeof sale & { notes?: string | null }).notes && <div className="text-[11px] text-blue-600 dark:text-blue-300">{(sale as typeof sale & { notes?: string | null }).notes}</div>}
                       </td>
                       <td className="py-4 px-5">
                         <div className="text-sm font-medium text-slate-900 dark:text-white">{sale.customer_name || '-'}</div>
@@ -90,9 +98,10 @@ export default async function InventoryPage() {
                       <td className="py-4 px-5">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase
                           ${sale.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800' : 
-                            sale.status === 'CANCELLED' ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:border-red-800' : 
+                            sale.status === 'CANCELLED' || sale.status === 'OUT_OF_STOCK' ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:border-red-800' :
+                            sale.status === 'PREORDER' ? 'bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-900/30 dark:border-blue-800' :
                             'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/30 dark:border-amber-800'}`}>
-                          {sale.status === 'CONFIRMED' ? 'Confirme' : sale.status === 'CANCELLED' ? 'Annule' : 'En Attente'}
+                          {sale.status === 'CONFIRMED' ? 'Confirme' : sale.status === 'CANCELLED' ? 'Annule' : sale.status === 'OUT_OF_STOCK' ? 'Rupture' : sale.status === 'PREORDER' ? 'Commande à importer' : 'En Attente'}
                         </span>
                       </td>
                       <td className="py-4 px-5">
@@ -104,7 +113,7 @@ export default async function InventoryPage() {
                                   <Check size={18} strokeWidth={2.5} />
                                 </button>
                               </form>
-                              <form action={cancelPendingSale.bind(null, sale.id, sale.brand, sale.btu)}>
+                              <form action={cancelPendingSale.bind(null, sale.id)}>
                                 <button type="submit" className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Annuler">
                                   <X size={18} strokeWidth={2.5} />
                                 </button>
@@ -131,6 +140,33 @@ export default async function InventoryPage() {
         </div>
 
       </div>
+
+      <section className="max-w-7xl mx-auto mt-8 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
+        <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700">
+          <History size={18} className="text-slate-400" />
+          <h2 className="text-base font-semibold tracking-tight">Derniers produits ajoutés · Historique du stock</h2>
+          <span className="ml-auto text-xs text-slate-500">100 dernières opérations · historique complet dans Excel</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
+            <thead className="bg-slate-50/50 dark:bg-slate-700/50"><tr>
+              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Date et heure</th>
+              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Produit</th>
+              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Quantité ajoutée</th>
+              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Utilisateur</th>
+            </tr></thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {additions.map((addition) => <tr key={addition.id}>
+                <td className="py-3 px-5 text-sm text-slate-500">{addition.createdAt.toLocaleString('fr-MA', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Africa/Casablanca' })}</td>
+                <td className="py-3 px-5 text-sm font-medium">{addition.brand} · {addition.btu.replace('_', ' ')} · {addition.ac_type}</td>
+                <td className="py-3 px-5 text-sm">+{addition.quantityAdded}</td>
+                <td className="py-3 px-5 text-sm text-slate-500">{addition.addedBy}</td>
+              </tr>)}
+              {additions.length === 0 && <tr><td colSpan={4} className="py-10 text-center text-sm text-slate-400">Aucun ajout enregistré.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

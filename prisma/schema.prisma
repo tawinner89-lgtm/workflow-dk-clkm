@@ -33,6 +33,21 @@ model Intervention {
   signatureClientUrl String?
   status             String   @default("PLANIFIEE")
   createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  intent             String?
+  symptom            String?
+  ac_type            String?
+  units              Int?
+  brand              String?
+  btu                String?
+  budget             Float?
+  room_area          Float?
+  day                String?
+  time_window        String?
+  syncHash           String?  @unique
+
+  @@index([createdAt])
+  @@index([technicianName, status])
 }
 
 model Technician {
@@ -41,6 +56,7 @@ model Technician {
   password  String
   createdAt DateTime @default(now())
   phone     String?
+  isAvailable Boolean @default(true)
 }
 
 model BotMessage {
@@ -63,9 +79,10 @@ model Inventory {
   id             Int    @id @default(autoincrement())
   brand          String
   btu            String
+  ac_type        String   @default("Split")
   stock_quantity Int
 
-  @@unique([brand, btu])
+  @@unique([brand, btu, ac_type])
   @@map("Inventory")
 }
 
@@ -74,13 +91,36 @@ model SalesLog {
   timestamp      DateTime @default(now())
   brand          String
   btu            String
+  ac_type        String   @default("Split")
   customer_name  String?
   customer_phone String?
   status         String?  @default("PENDING")
+  notes          String?
   syncHash       String?  @unique
 
   @@index([status])
   @@map("SalesLog")
+}
+
+model StockAddition {
+  id             Int      @id @default(autoincrement())
+  inventoryId    Int?
+  brand          String
+  btu            String
+  ac_type        String   @default("Split")
+  quantityAdded  Int
+  addedBy        String
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("StockAddition")
+}
+
+model InterventionSync {
+  hash      String   @id
+  createdAt DateTime @default(now())
+
+  @@map("InterventionSync")
 }
 
 

@@ -7,20 +7,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // Unauthenticated users cannot see technicians list
     const session = await getSession();
-    if (!session) {
-      // Except we need the list for the login dropdown on the frontend.
-      // So we will just return names/ids publicly, but NOT sensitive info.
-      // Wait, is it okay to expose names? Yes, MVP login dropdown requires names.
-    }
-
     const technicians = await prisma.technician.findMany({
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-      },
+      select: session?.role === 'ADMIN'
+        ? { id: true, name: true, phone: true }
+        : { id: true, name: true },
       orderBy: { name: 'asc' },
     });
     return NextResponse.json({ success: true, data: technicians });

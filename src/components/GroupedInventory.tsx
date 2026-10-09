@@ -1,99 +1,59 @@
 'use client';
 
-import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { adjustStock } from '@/app/actions';
-
-const handleAdjust = async (id: number, amount: number) => {
-  try {
-    await adjustStock(id, amount);
-  } catch (err: any) {
-    alert(err.message || "Une erreur est survenue");
-  }
-};
+import { getCatalogOffers } from '@/lib/business';
 
 type InventoryItem = {
   id: number;
   brand: string;
   btu: string;
+  ac_type: string;
   stock_quantity: number;
 };
 
+async function handleAdjust(id: number, amount: number) {
+  try {
+    await adjustStock(id, amount);
+  } catch (error: unknown) {
+    alert(error instanceof Error ? error.message : 'Une erreur est survenue');
+  }
+}
+
 export default function GroupedInventory({ inventory }: { inventory: InventoryItem[] }) {
-  // Group items by brand
-  const grouped = inventory.reduce((acc, item) => {
-    if (!acc[item.brand]) acc[item.brand] = [];
-    acc[item.brand].push(item);
-    return acc;
-  }, {} as Record<string, InventoryItem[]>);
-
-  const brands = Object.keys(grouped).sort();
-
-  // Initialize selected BTU for each brand (default to the first available)
-  const initialSelection = brands.reduce((acc, brand) => {
-    acc[brand] = grouped[brand][0].btu;
-    return acc;
-  }, {} as Record<string, string>);
-
-  const [selectedBtus, setSelectedBtus] = useState<Record<string, string>>(initialSelection);
-
   return (
     <div className="p-0">
       <table className="w-full text-left border-collapse">
         <thead className="bg-slate-50/50">
           <tr>
-            <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Modele</th>
-            <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Qte</th>
+            <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Produit</th>
+            <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Qté</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100/80">
-          {brands.map(brand => {
-            const items = grouped[brand];
-            const activeBtu = selectedBtus[brand] || items[0].btu;
-            const activeItem = items.find(i => i.btu === activeBtu) || items[0];
-
+          {inventory.map((item) => {
+            const offers = getCatalogOffers(item.brand, item.btu);
             return (
-              <tr key={brand} className="hover:bg-slate-50/50 transition-colors group">
+              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="py-3 px-5">
-                  <div className="font-medium text-slate-900 mb-2">{brand}</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {items.map(item => {
-                      const isActive = item.btu === activeBtu;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setSelectedBtus(prev => ({ ...prev, [brand]: item.btu }))}
-                          className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border transition-colors ${
-                            isActive
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700'
-                          }`}
-                        >
-                          {item.btu.replace('_', ' ')}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <div className="font-medium text-slate-900">{item.brand}</div>
+                  <div className="text-xs text-slate-500 mt-1">{item.btu.replace('_', ' ')} · {item.ac_type}</div>
+                  {offers.map((offer) => <div key={`${offer.modele}-${offer.prix_promo}`} className="mt-1 text-xs text-slate-600">
+                    <span>{offer.modele}: </span>
+                    {offer.prix_normal ? <span className="mr-1 text-slate-400 line-through">{offer.prix_normal} DH TTC</span> : null}
+                    <span className="font-semibold text-slate-900">{offer.prix_promo} DH TTC</span>
+                    {offer.installation_incluse ? <span className="ml-1 text-emerald-700">· Installation incluse</span> : null}
+                  </div>)}
                 </td>
                 <td className="py-3 px-5 text-right align-middle">
                   <div className="flex items-center justify-end gap-2">
-                    <form action={() => handleAdjust(activeItem.id, -1)}>
-                      <button type="submit" className="p-1 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors" title="Diminuer">
+                    <form action={() => handleAdjust(item.id, -1)}>
+                      <button type="submit" disabled={item.stock_quantity <= 0} className="p-1 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30" title="Diminuer">
                         <Minus size={14} strokeWidth={2.5} />
                       </button>
                     </form>
-
-                    <div className="flex items-center justify-center gap-1.5 min-w-[2rem]">
-                      {activeItem.stock_quantity === 0 && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" title="Rupture de stock" />
-                      )}
-                      <span className={`font-semibold text-sm ${activeItem.stock_quantity === 0 ? 'text-red-600' : 'text-slate-700'}`}>
-                        {activeItem.stock_quantity}
-                      </span>
-                    </div>
-
-                    <form action={() => handleAdjust(activeItem.id, 1)}>
+                    <span className={`font-semibold text-sm min-w-5 text-center ${item.stock_quantity === 0 ? 'text-red-600' : 'text-slate-700'}`}>{item.stock_quantity}</span>
+                    <form action={() => handleAdjust(item.id, 1)}>
                       <button type="submit" className="p-1 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors" title="Augmenter">
                         <Plus size={14} strokeWidth={2.5} />
                       </button>
@@ -103,16 +63,9 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
               </tr>
             );
           })}
-          {brands.length === 0 && (
-            <tr>
-              <td colSpan={2} className="py-12 text-center text-slate-400 text-sm">
-                Aucun article en stock.
-              </td>
-            </tr>
-          )}
+          {inventory.length === 0 && <tr><td colSpan={2} className="py-12 text-center text-slate-400 text-sm">Aucun produit enregistré.</td></tr>}
         </tbody>
       </table>
     </div>
   );
 }
-

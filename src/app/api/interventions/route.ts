@@ -50,6 +50,28 @@ async function uploadBase64ToSupabase(reference: string, type: 'before' | 'after
   }
 }
 
+function notifyTechnician(technician: { name: string; phone: string | null }, intervention: {
+  clientName: string; reference: string; type: string | null; startTime: string | null; clientAddress: string; clientContactPhone: string | null; problemReported: string | null;
+}) {
+  if (!technician.phone || !process.env.BOT_URL || !process.env.WEBHOOK_SECRET) return;
+  void fetch(`${process.env.BOT_URL.replace(/\/$/, '')}/notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: process.env.WEBHOOK_SECRET,
+      phone: technician.phone,
+      clientName: intervention.clientName,
+      reference: intervention.reference,
+      technicianName: technician.name,
+      type: intervention.type,
+      proposedTime: intervention.startTime,
+      clientAddress: intervention.clientAddress,
+      clientContactPhone: intervention.clientContactPhone,
+      problemReported: intervention.problemReported,
+    }),
+  }).catch(error => console.error('[INTERVENTION NOTIFY]', error));
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -93,6 +115,19 @@ export async function POST(request: Request) {
         
         if (Array.isArray(payload.workDone)) {
           payload.workDone = JSON.stringify(payload.workDone);
+        }
+
+        const previous = await prisma.intervention.findUnique({
+          where: { reference: payload.reference },
+          select: { technicianName: true },
+        });
+        const requestedTechnician = String(payload.technicianName || '').trim();
+        const isAssigned = requestedTechnician && !/assigner|unassigned|\?/.test(requestedTechnician.toLowerCase());
+        const assignedTechnician = isAssigned
+          ? await prisma.technician.findUnique({ where: { name: requestedTechnician }, select: { name: true, phone: true, isAvailable: true } })
+          : null;
+        if (isAssigned && (!assignedTechnician || (!assignedTechnician.isAvailable && previous?.technicianName !== requestedTechnician))) {
+          throw new Error('Technicien introuvable ou indisponible.');
         }
 
         if (payload.photoBeforeUrl && payload.photoBeforeUrl.startsWith('data:image/')) {
@@ -162,6 +197,10 @@ export async function POST(request: Request) {
         
         results.push({ reference: created.reference, status: 'success' });
 
+        if (assignedTechnician && previous?.technicianName !== assignedTechnician.name) {
+          notifyTechnician(assignedTechnician, created);
+        }
+
         // ── WhatsApp notification when intervention is TERMINEE ──────────
         if (payload.status === 'TERMINEE' && created.clientContactPhone) {
           // Fire-and-forget: don't await, don't block the API response
@@ -216,6 +255,9 @@ export async function GET(request: Request) {
     const technicianName = searchParams.get('technicianName');
     const full = searchParams.get('full') === 'true';
     const reference = searchParams.get('reference');
+  const query = searchParams.get('q')?.trim();
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const take = Math.min(500, Math.max(1, Number(searchParams.get('limit')) || 500));
     const isAdminRequest = searchParams.get('admin') === 'true';
 
     // Strict Admin Check
@@ -226,6 +268,14 @@ export async function GET(request: Request) {
     const where: Prisma.InterventionWhereInput = {};
     if (status) where.status = status;
     if (reference) where.reference = reference;
+    if (query) {
+      where.OR = [
+        { reference: { contains: query, mode: 'insensitive' } },
+        { clientName: { contains: query, mode: 'insensitive' } },
+        { clientAddress: { contains: query, mode: 'insensitive' } },
+        { technicianName: { contains: query, mode: 'insensitive' } },
+      ];
+    }
 
     // Enforce role-based access
     if (session.role === 'TECHNICIAN') {
@@ -237,7 +287,8 @@ export async function GET(request: Request) {
     const interventions = await prisma.intervention.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: 500, // MVP limit to protect performance
+      skip: (page - 1) * take,
+      take,
       ...(full ? {} : {
         select: {
           id: true,
@@ -267,11 +318,34 @@ export async function GET(request: Request) {
     if (reference && interventions.length === 1) {
       return NextResponse.json({ success: true, data: interventions[0] });
     }
-    return NextResponse.json({ success: true, data: interventions });
+    const total = await prisma.intervention.count({ where });
+    return NextResponse.json({ success: true, data: interventions, pagination: { page, limit: take, total, hasMore: page * take < total } });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error("[API GET /interventions] Database fetch error:", msg);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const session = await getSession();
+    if (session?.role !== 'ADMIN') return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 403 });
+
+    const body = await request.json();
+    const reference = String(body.reference || '').trim();
+    const technicianName = String(body.technicianName || '').trim();
+    if (!reference || !technicianName) return NextResponse.json({ success: false, error: 'Référence et technicien obligatoires.' }, { status: 400 });
+
+    const technician = await prisma.technician.findUnique({ where: { name: technicianName }, select: { name: true, phone: true, isAvailable: true } });
+    if (!technician || !technician.isAvailable) return NextResponse.json({ success: false, error: 'Technicien introuvable ou indisponible.' }, { status: 404 });
+    const intervention = await prisma.intervention.update({ where: { reference }, data: { technicianName: technician.name } });
+
+    notifyTechnician(technician, intervention);
+    return NextResponse.json({ success: true, data: intervention });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erreur serveur inconnue';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 

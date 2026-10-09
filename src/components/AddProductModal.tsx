@@ -2,9 +2,13 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { addInventoryProduct } from '../app/actions';
+import { catalogAcTypes, catalogBrands, catalogBtuOptions } from '@/lib/business';
 
-export default function AddProductModal() {
+type InventoryOption = { brand: string; btu: string; ac_type: string; stock_quantity: number };
+
+export default function AddProductModal({ inventory = [] }: { inventory?: InventoryOption[] }) {
   const [isOpen, setIsOpen] = useState(false);
+  const brandOptions = Array.from(new Set([...catalogBrands, ...inventory.map((item) => item.brand)])).sort();
 
   return (
     <>
@@ -32,23 +36,37 @@ export default function AddProductModal() {
             }} className="p-6 space-y-5">
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 block">Marque (ex: Samsung, Support Mural)</label>
-                <input 
+                <label className="text-sm font-semibold text-slate-700 block">Marque</label>
+                <input
                   name="brand" 
+                  list="inventory-brand-options"
                   required
-                  placeholder="Nom de la marque ou catégorie"
+                  maxLength={50}
+                  placeholder="Ex. Airwell"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                 />
+                <datalist id="inventory-brand-options">
+                  {brandOptions.map((brand) => <option key={brand} value={brand} />)}
+                </datalist>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 block">Modèle / Détail (ex: 18000_BTU, Standard)</label>
-                <input 
+                <label className="text-sm font-semibold text-slate-700 block">Type de climatiseur</label>
+                <select name="ac_type" required defaultValue="Split" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none">
+                  {catalogAcTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 block">Puissance (BTU)</label>
+                <select
                   name="btu" 
                   required
-                  placeholder="Modèle, puissance ou taille"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                />
+                >
+                  <option value="">Choisir une puissance</option>
+                  {catalogBtuOptions.map((btu) => <option key={btu} value={btu}>{btu.replace('_', ' ')}</option>)}
+                </select>
               </div>
 
               <div className="space-y-2">
@@ -65,7 +83,7 @@ export default function AddProductModal() {
 
               <div className="pt-2">
                 <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-emerald-500/30">
-                  Ajouter à l'inventaire
+                  Ajouter à l&apos;inventaire
                 </button>
               </div>
             </form>

@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS "SaleSync" (
+  hash TEXT PRIMARY KEY,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE "SalesLog"
+ADD COLUMN IF NOT EXISTS "syncHash" TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "SalesLog_syncHash_key"
+ON "SalesLog" ("syncHash");
