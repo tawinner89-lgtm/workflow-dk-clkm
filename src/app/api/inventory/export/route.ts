@@ -34,7 +34,8 @@ export async function GET() {
   const additionsSheet = XLSX.utils.json_to_sheet(additions.map((addition) => ({
     'Date et heure': addition.createdAt.toISOString(),
     Produit: `${addition.brand} · ${addition.btu.replace('_', ' ')} · ${addition.ac_type}`,
-    'Quantité ajoutée': addition.quantityAdded,
+    Mouvement: addition.operation,
+    'Quantité modifiée': addition.quantityAdded,
     Utilisateur: addition.addedBy,
   })));
 

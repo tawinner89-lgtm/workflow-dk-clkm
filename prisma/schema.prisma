@@ -109,6 +109,7 @@ model StockAddition {
   btu            String
   ac_type        String   @default("Split")
   quantityAdded  Int
+  operation      String   @default("ADD")
   addedBy        String
   createdAt      DateTime @default(now())
 

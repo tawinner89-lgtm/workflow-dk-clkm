@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
         if (inventory.count !== 1) throw new Error('Produit de la vente introuvable.');
         const item = await tx.inventory.findFirst({ where: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } });
         if (!item) throw new Error('Produit de la vente introuvable.');
-        await tx.stockAddition.create({ data: { inventoryId: item.id, brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, quantityAdded: 1, addedBy: 'Retour de vente annulée (dashboard)' } });
+        await tx.stockAddition.create({ data: { inventoryId: item.id, brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, quantityAdded: 1, operation: 'RETURN', addedBy: 'Retour de vente annulée (dashboard)' } });
       }
       return tx.salesLog.findUnique({ where: { id } });
     });

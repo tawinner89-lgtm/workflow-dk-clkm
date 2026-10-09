@@ -1,0 +1,2 @@
+ALTER TABLE "StockAddition"
+  ADD COLUMN IF NOT EXISTS "operation" TEXT NOT NULL DEFAULT 'ADD';

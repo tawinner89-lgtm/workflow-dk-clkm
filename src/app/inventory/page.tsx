@@ -11,19 +11,19 @@ import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
-export default async function InventoryPage() {
+export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string } }) {
   const session = await getSession();
   if (session?.role !== 'ADMIN') redirect('/admin');
+  const activeTab = searchParams?.tab === 'history' ? 'history' : 'inventory';
 
   const inventory = await prisma.inventory.findMany({
     orderBy: [{ brand: 'asc' }, { btu: 'asc' }]
   });
 
-  const sales = await prisma.salesLog.findMany({
-    orderBy: { timestamp: 'desc' },
-    take: 50,
-  });
-  const additions = await prisma.stockAddition.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  const [sales, additions] = await Promise.all([
+    activeTab === 'inventory' ? prisma.salesLog.findMany({ orderBy: { timestamp: 'desc' }, take: 50 }) : Promise.resolve([]),
+    activeTab === 'history' ? prisma.stockAddition.findMany({ orderBy: { createdAt: 'desc' }, take: 200 }) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 sm:p-10 font-sans text-slate-900 dark:text-slate-100">
@@ -41,11 +41,19 @@ export default async function InventoryPage() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Inventaire & Ventes</h1>
             <p className="text-sm text-slate-500 font-medium mt-1">Gestion des stocks et confirmation des ventes WhatsApp</p>
           </div>
-          <div className="flex gap-3"><StockExportButton /><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></div>
+          {activeTab === 'inventory' && <div className="flex gap-3"><StockExportButton /><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></div>}
         </div>
+        <nav className="mt-6 flex w-fit gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800" aria-label="Sections de l'inventaire">
+          <Link href="/inventory" aria-current={activeTab === 'inventory' ? 'page' : undefined} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
+            Inventaire &amp; Ventes
+          </Link>
+          <Link href="/inventory?tab=history" aria-current={activeTab === 'history' ? 'page' : undefined} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'history' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
+            Historique
+          </Link>
+        </nav>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
+      {activeTab === 'inventory' ? <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
         
         {/* INVENTORY SECTION */}
         <div className="lg:col-span-4 flex flex-col gap-4">
@@ -139,34 +147,34 @@ export default async function InventoryPage() {
           </div>
         </div>
 
-      </div>
-
-      <section className="max-w-7xl mx-auto mt-8 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
+      </div> : <section className="max-w-7xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
         <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700">
           <History size={18} className="text-slate-400" />
-          <h2 className="text-base font-semibold tracking-tight">Derniers produits ajoutés · Historique du stock</h2>
-          <span className="ml-auto text-xs text-slate-500">100 dernières opérations · historique complet dans Excel</span>
+          <h2 className="text-base font-semibold tracking-tight">Historique des mouvements de stock</h2>
+          <span className="ml-auto text-xs text-slate-500">200 dernières opérations · toutes les opérations restent enregistrées</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[700px]">
             <thead className="bg-slate-50/50 dark:bg-slate-700/50"><tr>
               <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Date et heure</th>
               <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Produit</th>
-              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Quantité ajoutée</th>
+              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Mouvement</th>
+              <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Quantité</th>
               <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Utilisateur</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {additions.map((addition) => <tr key={addition.id}>
                 <td className="py-3 px-5 text-sm text-slate-500">{addition.createdAt.toLocaleString('fr-MA', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Africa/Casablanca' })}</td>
                 <td className="py-3 px-5 text-sm font-medium">{addition.brand} · {addition.btu.replace('_', ' ')} · {addition.ac_type}</td>
-                <td className="py-3 px-5 text-sm">+{addition.quantityAdded}</td>
+                <td className="py-3 px-5 text-sm">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression marque' } as Record<string, string>)[addition.operation] || addition.operation}</td>
+                <td className="py-3 px-5 text-sm">{addition.operation === 'REMOVE' || addition.operation === 'SALE' || addition.operation === 'DELETE_BRAND' ? '−' : '+'}{addition.quantityAdded}</td>
                 <td className="py-3 px-5 text-sm text-slate-500">{addition.addedBy}</td>
               </tr>)}
-              {additions.length === 0 && <tr><td colSpan={4} className="py-10 text-center text-sm text-slate-400">Aucun ajout enregistré.</td></tr>}
+              {additions.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-400">Aucun mouvement enregistré.</td></tr>}
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         create: { brand, btu, ac_type, stock_quantity: stockQuantity },
         update: { stock_quantity: { increment: stockQuantity } },
       });
-      await tx.stockAddition.create({ data: { inventoryId: item.id, brand, btu, ac_type, quantityAdded: stockQuantity, addedBy: 'Administrateur dashboard' } });
+      await tx.stockAddition.create({ data: { inventoryId: item.id, brand, btu, ac_type, quantityAdded: stockQuantity, operation: 'ADD', addedBy: 'Administrateur dashboard' } });
       return item;
     });
     return NextResponse.json({ success: true, data }, { status: 201 });
@@ -56,8 +56,9 @@ export async function PATCH(request: Request) {
       if (!current) throw new Error('Produit introuvable.');
       const result = await tx.inventory.updateMany({ where: { id }, data: { stock_quantity: stockQuantity } });
       if (result.count !== 1) throw new Error('Produit introuvable.');
-      if (stockQuantity > current.stock_quantity) {
-        await tx.stockAddition.create({ data: { inventoryId: id, brand: current.brand, btu: current.btu, ac_type: current.ac_type, quantityAdded: stockQuantity - current.stock_quantity, addedBy: 'Administrateur dashboard' } });
+      const change = stockQuantity - current.stock_quantity;
+      if (change !== 0) {
+        await tx.stockAddition.create({ data: { inventoryId: id, brand: current.brand, btu: current.btu, ac_type: current.ac_type, quantityAdded: Math.abs(change), operation: change > 0 ? 'ADD' : 'REMOVE', addedBy: 'Administrateur dashboard' } });
       }
       return tx.inventory.findUnique({ where: { id } });
     });

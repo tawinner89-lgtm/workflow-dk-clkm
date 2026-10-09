@@ -45,7 +45,7 @@ export async function cancelPendingSale(saleId: number) {
     if (inventory.count !== 1) throw new Error('Produit de la vente introuvable; annulation non appliquée.');
     const item = await tx.inventory.findFirst({ where: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } });
     if (!item) throw new Error('Produit de la vente introuvable; annulation non appliquée.');
-    await tx.stockAddition.create({ data: { inventoryId: item.id, brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, quantityAdded: 1, addedBy: 'Retour de vente annulée (dashboard)' } });
+    await tx.stockAddition.create({ data: { inventoryId: item.id, brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, quantityAdded: 1, operation: 'RETURN', addedBy: 'Retour de vente annulée (dashboard)' } });
     return true;
   });
   if (!cancelled) throw new Error('Vente introuvable ou déjà traitée.');
@@ -70,6 +70,9 @@ export async function recordManualSale(formData: FormData) {
       data: { stock_quantity: { decrement: 1 } },
     });
     if (stock.count !== 1) throw new Error('Stock épuisé ou produit introuvable.');
+    const item = await tx.inventory.findFirst({ where: { brand, btu, ac_type } });
+    if (!item) throw new Error('Produit introuvable.');
+    await tx.stockAddition.create({ data: { inventoryId: item.id, brand, btu, ac_type, quantityAdded: 1, operation: 'SALE', addedBy: 'Vente manuelle dashboard' } });
     await tx.salesLog.create({
       data: {
         brand,
@@ -97,11 +100,9 @@ export async function adjustStock(id: number, adjustment: number) {
       data: { stock_quantity: { increment: adjustment } },
     });
     if (result.count !== 1) throw new Error('Stock insuffisant pour cet ajustement.');
-    if (adjustment > 0) {
-      await tx.stockAddition.create({
-        data: { inventoryId: id, brand: current.brand, btu: current.btu, ac_type: current.ac_type, quantityAdded: adjustment, addedBy: 'Administrateur dashboard' },
-      });
-    }
+    await tx.stockAddition.create({
+      data: { inventoryId: id, brand: current.brand, btu: current.btu, ac_type: current.ac_type, quantityAdded: Math.abs(adjustment), operation: adjustment > 0 ? 'ADD' : 'REMOVE', addedBy: 'Administrateur dashboard' },
+    });
   });
 
   revalidatePath('/inventory');
@@ -128,7 +129,7 @@ export async function addInventoryProduct(formData: FormData) {
         update: { stock_quantity: { increment: stock_quantity } },
       });
       await tx.stockAddition.create({
-        data: { inventoryId: inventory.id, brand: normalizedBrand, btu, ac_type, quantityAdded: stock_quantity, addedBy: 'Administrateur dashboard' },
+        data: { inventoryId: inventory.id, brand: normalizedBrand, btu, ac_type, quantityAdded: stock_quantity, operation: 'ADD', addedBy: 'Administrateur dashboard' },
       });
     });
     revalidatePath('/inventory');
@@ -136,4 +137,35 @@ export async function addInventoryProduct(formData: FormData) {
     return;
   }
   throw new Error('Marque, puissance ou quantité invalide.');
+}
+
+export async function deleteInventoryBrand(brand: string) {
+  await requireAdminAuth();
+  const normalizedBrand = String(brand || '').trim();
+  if (!validBrand(normalizedBrand)) throw new Error('Marque invalide.');
+
+  await prisma.$transaction(async (tx) => {
+    const items = await tx.inventory.findMany({
+      where: { brand: { equals: normalizedBrand, mode: 'insensitive' } },
+    });
+    if (items.length === 0) throw new Error('Marque introuvable.');
+
+    await tx.stockAddition.createMany({
+      data: items.map((item) => ({
+        inventoryId: item.id,
+        brand: item.brand,
+        btu: item.btu,
+        ac_type: item.ac_type,
+        quantityAdded: item.stock_quantity,
+        operation: 'DELETE_BRAND',
+        addedBy: 'Administrateur dashboard',
+      })),
+    });
+
+    const result = await tx.inventory.deleteMany({ where: { id: { in: items.map((item) => item.id) } } });
+    if (result.count !== items.length) throw new Error('La suppression de la marque est incomplète.');
+  });
+
+  revalidatePath('/inventory');
+  revalidatePath('/admin');
 }
