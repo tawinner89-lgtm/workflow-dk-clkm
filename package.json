@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate:deploy": "node scripts/prisma.cjs migrate deploy"
+    "db:migrate:deploy": "node scripts/deploy-migrations.cjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

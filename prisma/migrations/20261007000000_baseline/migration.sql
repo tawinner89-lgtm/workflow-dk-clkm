@@ -1,0 +1,3 @@
+-- Baseline marker for the existing DK Clim production schema.
+-- This migration is marked as applied by scripts/deploy-migrations.cjs when
+-- the established application tables already exist, and is otherwise a no-op.

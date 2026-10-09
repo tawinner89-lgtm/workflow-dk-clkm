@@ -1,5 +1,5 @@
 [build]
-  command = "npm run db:migrate:deploy && npx prisma generate && npm run build"
+  command = "npx prisma generate && npm run db:migrate:deploy && npm run build"
   publish = ".next"
 
 [[plugins]]
