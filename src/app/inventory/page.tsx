@@ -65,7 +65,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
       {activeTab === 'inventory' ? <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
         
         {/* INVENTORY SECTION */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
+        <div className="lg:col-span-5 flex flex-col gap-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
             <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700 bg-white dark:bg-slate-800">
               <PackageOpen size={18} className="text-slate-400" />
@@ -77,7 +77,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
         </div>
 
         {/* SALES LOG SECTION */}
-        <div className="lg:col-span-8 flex flex-col gap-4">
+        <div className="lg:col-span-7 flex flex-col gap-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
             <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700 bg-white dark:bg-slate-800">
               <History size={18} className="text-slate-400" />

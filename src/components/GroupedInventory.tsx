@@ -71,70 +71,49 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
         })}
       </div>
 
-      <table className="w-full border-collapse text-left">
-        <thead className="bg-slate-50/50 dark:bg-slate-700/30">
-          <tr>
-            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Marque</th>
-            <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Puissances · Stock</th>
-            <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700">
-          {brandGroups.map(({ label, products }) => (
-            <tr key={`${activeType}-${label}`} className="align-top transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-700/30">
-              <td className="px-5 py-4">
-                <div className="font-semibold text-slate-900 dark:text-white">{label}</div>
-                <div className="mt-1 text-xs text-slate-500">{activeType}</div>
-              </td>
-              <td className="px-5 py-3">
-                <div className="flex flex-wrap gap-2">
-                  {products
-                    .slice()
-                    .sort((a, b) => Number(a.btu.replace(/\D/g, '')) - Number(b.btu.replace(/\D/g, '')))
-                    .map((item) => {
-                      const offers = item.ac_type === 'Split' ? getCatalogOffers(item.brand, item.btu) : [];
-                      return (
-                        <div key={item.id} className="min-w-[142px] rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
-                              {item.btu.replace('_', ' ')}
-                            </span>
-                            <span className={`min-w-5 text-center text-sm font-bold ${item.stock_quantity === 0 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>
-                              {item.stock_quantity}
-                            </span>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between">
-                            <button type="button" onClick={() => handleAdjust(item.id, -1)} disabled={item.stock_quantity <= 0} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 dark:hover:bg-slate-700" title="Diminuer">
-                              <Minus size={14} />
-                            </button>
-                            <span className="text-[11px] text-slate-500">Stock</span>
-                            <button type="button" onClick={() => handleAdjust(item.id, 1)} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700" title="Ajouter au stock">
-                              <Plus size={14} />
-                            </button>
-                          </div>
-                          {offers.map((offer) => (
-                            <div key={`${offer.modele}-${offer.prix_promo}`} className="mt-2 border-t border-slate-100 pt-2 text-[10px] leading-4 text-slate-500 dark:border-slate-700">
-                              {offer.prix_normal ? <span className="mr-1 line-through">{offer.prix_normal} DH</span> : null}
-                              <span className="font-semibold text-slate-800 dark:text-slate-200">{offer.prix_promo} DH TTC</span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                </div>
-              </td>
-              <td className="px-3 py-4 text-right">
-                <button type="button" onClick={() => handleDeleteBrand(label)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30" title={`Supprimer ${label}`} aria-label={`Supprimer la marque ${label}`}>
-                  <Trash2 size={16} />
-                </button>
-              </td>
-            </tr>
-          ))}
-          {brandGroups.length === 0 && (
-            <tr><td colSpan={3} className="px-5 py-12 text-center text-sm text-slate-400">Aucun produit {activeType} enregistré.</td></tr>
-          )}
-        </tbody>
-      </table>
+      <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+        {brandGroups.map(({ label, products }) => (
+          <section key={`${activeType}-${label}`} className="min-w-0 rounded-xl border border-slate-200 p-2.5 dark:border-slate-700">
+            <header className="mb-2 flex items-center justify-between gap-2">
+              <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">{label}</div>
+              <button type="button" onClick={() => handleDeleteBrand(label)} className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30" title={`Supprimer ${label}`} aria-label={`Supprimer la marque ${label}`}>
+                <Trash2 size={14} />
+              </button>
+            </header>
+            <div className="grid grid-cols-2 gap-1.5">
+              {products
+                .slice()
+                .sort((a, b) => Number(a.btu.replace(/\D/g, '')) - Number(b.btu.replace(/\D/g, '')))
+                .map((item) => {
+                  const offers = item.ac_type === 'Split' ? getCatalogOffers(item.brand, item.btu) : [];
+                  return (
+                    <div key={item.id} className="min-w-0 rounded-lg bg-slate-50 px-2 py-1.5 dark:bg-slate-700/60">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate text-[10px] font-semibold text-slate-700 dark:text-slate-100">{item.btu.replace('_', ' ')}</span>
+                        <span className={`text-xs font-bold ${item.stock_quantity === 0 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{item.stock_quantity}</span>
+                        <button type="button" onClick={() => handleAdjust(item.id, -1)} disabled={item.stock_quantity <= 0} className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30 dark:hover:bg-slate-600" title="Diminuer">
+                          <Minus size={11} />
+                        </button>
+                        <button type="button" onClick={() => handleAdjust(item.id, 1)} className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-slate-600" title="Ajouter au stock">
+                          <Plus size={11} />
+                        </button>
+                      </div>
+                      {offers.length > 0 && <div className="mt-0.5 truncate text-[9px] leading-3 text-slate-500" title={offers.map((offer) => `${offer.modele}: ${offer.prix_normal ? `${offer.prix_normal} → ` : ''}${offer.prix_promo} DH TTC`).join(' · ')}>
+                        {offers.map((offer) => <span key={`${offer.modele}-${offer.prix_promo}`} className="mr-1 whitespace-nowrap">
+                          {offer.prix_normal ? <span className="line-through">{offer.prix_normal}</span> : null}
+                          <span className="font-semibold text-slate-700 dark:text-slate-200"> {offer.prix_promo}</span>
+                        </span>)}DH
+                      </div>}
+                    </div>
+                  );
+                })}
+            </div>
+          </section>
+        ))}
+        {brandGroups.length === 0 && (
+          <div className="col-span-full px-5 py-10 text-center text-sm text-slate-400">Aucun produit {activeType} enregistré.</div>
+        )}
+      </div>
     </div>
   );
 }
