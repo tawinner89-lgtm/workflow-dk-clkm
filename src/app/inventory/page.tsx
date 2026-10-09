@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
-export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string } }) {
+export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string; page?: string } }) {
   const session = await getSession();
   if (session?.role !== 'ADMIN') redirect('/admin');
   const activeTab = searchParams?.tab === 'history' ? 'history' : 'inventory';
@@ -20,10 +20,19 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
     orderBy: [{ brand: 'asc' }, { btu: 'asc' }]
   });
 
-  const [sales, additions] = await Promise.all([
+  const requestedHistoryPage = Math.max(1, Number.parseInt(searchParams?.page || '1', 10) || 1);
+  const [sales, historyCount] = await Promise.all([
     activeTab === 'inventory' ? prisma.salesLog.findMany({ orderBy: { timestamp: 'desc' }, take: 50 }) : Promise.resolve([]),
-    activeTab === 'history' ? prisma.stockAddition.findMany({ orderBy: { createdAt: 'desc' }, take: 200 }) : Promise.resolve([]),
+    activeTab === 'history' ? prisma.stockAddition.count() : Promise.resolve(0),
   ]);
+  const historyPageSize = 100;
+  const historyPageCount = Math.max(1, Math.ceil(historyCount / historyPageSize));
+  const historyPage = Math.min(requestedHistoryPage, historyPageCount);
+  const additions = activeTab === 'history' ? await prisma.stockAddition.findMany({
+    orderBy: { createdAt: 'desc' },
+    skip: (historyPage - 1) * historyPageSize,
+    take: historyPageSize,
+  }) : [];
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 sm:p-10 font-sans text-slate-900 dark:text-slate-100">
@@ -41,7 +50,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Inventaire & Ventes</h1>
             <p className="text-sm text-slate-500 font-medium mt-1">Gestion des stocks et confirmation des ventes WhatsApp</p>
           </div>
-          {activeTab === 'inventory' && <div className="flex gap-3"><StockExportButton /><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></div>}
+          <div className="flex gap-3"><StockExportButton />{activeTab === 'inventory' && <><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></>}</div>
         </div>
         <nav className="mt-6 flex w-fit gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800" aria-label="Sections de l'inventaire">
           <Link href="/inventory" aria-current={activeTab === 'inventory' ? 'page' : undefined} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
@@ -151,7 +160,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
         <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700">
           <History size={18} className="text-slate-400" />
           <h2 className="text-base font-semibold tracking-tight">Historique des mouvements de stock</h2>
-          <span className="ml-auto text-xs text-slate-500">200 dernières opérations · toutes les opérations restent enregistrées</span>
+          <span className="ml-auto text-xs text-slate-500">{historyCount} mouvements au total</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[700px]">
@@ -173,6 +182,13 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
               {additions.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-400">Aucun mouvement enregistré.</td></tr>}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm dark:border-slate-700">
+          <span className="text-slate-500">Page {historyPage} sur {historyPageCount}</span>
+          <div className="flex gap-2">
+            {historyPage > 1 ? <Link href={`/inventory?tab=history&page=${historyPage - 1}`} className="rounded-lg border border-slate-200 px-3 py-2 font-medium hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700">Précédent</Link> : <span className="rounded-lg border border-slate-100 px-3 py-2 text-slate-300 dark:border-slate-700">Précédent</span>}
+            {historyPage < historyPageCount ? <Link href={`/inventory?tab=history&page=${historyPage + 1}`} className="rounded-lg border border-slate-200 px-3 py-2 font-medium hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700">Suivant</Link> : <span className="rounded-lg border border-slate-100 px-3 py-2 text-slate-300 dark:border-slate-700">Suivant</span>}
+          </div>
         </div>
       </section>}
     </div>
