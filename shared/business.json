@@ -1,0 +1,154 @@
+{
+  "business_identity": {
+    "headquarters": "Casablanca, Maroc",
+    "service_area": "Partout au Maroc",
+    "location_guidance": "Siège principal à Casablanca. DK Clim propose ses services de vente, installation, entretien et réparation partout au Maroc. Pour créer un ticket, demander la ville et le quartier du client sans supposer Casablanca."
+  },
+  "sales_catalog": {
+    "brands_in_stock": [
+      "CIAT",
+      "Carrier",
+      "Daikool",
+      "TCL",
+      "LG",
+      "Midea"
+    ],
+    "btu_options": [
+      "9000_BTU",
+      "12000_BTU",
+      "18000_BTU",
+      "24000_BTU"
+    ],
+    "accepted_ac_types": [
+      "Split",
+      "Gainable",
+      "Cassette"
+    ],
+    "out_of_stock_policy": "Proposer une commande spéciale sous 24 à 48 heures après accord du client.",
+    "promotions_completes": [
+      {
+        "brand": "Daikool",
+        "btu": "9000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 3300,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Daikool",
+        "btu": "12000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 4000,
+        "installation_incluse": false
+      },
+      {
+        "brand": "CIAT",
+        "btu": "9000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 3800,
+        "installation_incluse": false
+      },
+      {
+        "brand": "CIAT",
+        "btu": "12000_BTU",
+        "modele": "Inverter",
+        "prix_promo": 4300,
+        "installation_incluse": false
+      },
+      {
+        "brand": "CIAT",
+        "btu": "18000_BTU",
+        "modele": "Inverter R32",
+        "prix_promo": 5999,
+        "installation_incluse": true
+      },
+      {
+        "brand": "CIAT",
+        "btu": "24000_BTU",
+        "modele": "Inverter R32",
+        "prix_promo": 7299,
+        "installation_incluse": true
+      },
+      {
+        "brand": "TCL",
+        "btu": "9000_BTU",
+        "modele": "Gris ON/OFF",
+        "prix_promo": 3200,
+        "installation_incluse": false
+      },
+      {
+        "brand": "TCL",
+        "btu": "9000_BTU",
+        "modele": "Blanc Inverter",
+        "prix_promo": 3500,
+        "installation_incluse": false
+      },
+      {
+        "brand": "TCL",
+        "btu": "9000_BTU",
+        "modele": "Noir Inverter",
+        "prix_promo": 3700,
+        "installation_incluse": false
+      },
+      {
+        "brand": "TCL",
+        "btu": "12000_BTU",
+        "modele": "Noir Inverter",
+        "prix_promo": 4000,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "9000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 5999,
+        "prix_promo": 4399,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "12000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 6599,
+        "prix_promo": 4999,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "18000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 9199,
+        "prix_promo": 6499,
+        "installation_incluse": false
+      },
+      {
+        "brand": "Carrier",
+        "btu": "24000_BTU",
+        "modele": "Inverter Dernière génération R32 A++ WiFi",
+        "prix_normal": 11999,
+        "prix_promo": 8499,
+        "installation_incluse": false
+      }
+    ]
+  },
+  "repair_and_maintenance": {
+    "repair_policy_brands": "Nous réparons toutes les marques de climatiseurs.",
+    "tarifs_services": {
+      "installation": 499,
+      "installation_pricing_rule": {
+        "amount_ttc_dh": 499,
+        "applies_only_when": "Copper piping is already pre-installed (installation sur pré-câblage existant / n7as dayz).",
+        "if_status_unknown": "Do not ask a separate question. Quote the base fee only with the explicit pre-installed copper condition attached.",
+        "if_not_preinstalled": "You may state the 499 DH TTC base tariff only with its pre-installed copper condition clearly attached; the exact total requires an on-site assessment or confirmation of additional copper piping charges."
+      },
+      "entretien": 299,
+      "depannage": 199,
+      "entretien_promo": 399
+    },
+    "services_and_accessories_available": [
+      "Télécommandes",
+      "Tubes en cuivre",
+      "Supports",
+      "Recharge Gaz R410A / R32"
+    ]
+  }
+}
