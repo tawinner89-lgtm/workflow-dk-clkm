@@ -98,11 +98,11 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
                           <Plus size={11} />
                         </button>
                       </div>
-                      {offers.length > 0 && <div className="mt-0.5 truncate text-[9px] leading-3 text-slate-500" title={offers.map((offer) => `${offer.modele}: ${offer.prix_normal ? `${offer.prix_normal} → ` : ''}${offer.prix_promo} DH TTC`).join(' · ')}>
-                        {offers.map((offer) => <span key={`${offer.modele}-${offer.prix_promo}`} className="mr-1 whitespace-nowrap">
-                          {offer.prix_normal ? <span className="line-through">{offer.prix_normal}</span> : null}
-                          <span className="font-semibold text-slate-700 dark:text-slate-200"> {offer.prix_promo}</span>
-                        </span>)}DH
+                      {offers.length > 0 && <div className="mt-1 space-y-0.5" title={offers.map((offer) => `${offer.modele}: ${offer.prix_promo} DH TTC`).join(' · ')}>
+                        {offers.map((offer) => <div key={`${offer.modele}-${offer.prix_promo}`} className="flex min-w-0 items-baseline justify-between gap-1 text-[9px] leading-3">
+                          {offers.length > 1 && <span className="truncate text-slate-500">{offer.modele}</span>}
+                          <span className="shrink-0 font-semibold text-slate-800 dark:text-slate-100">{offer.prix_promo.toLocaleString('fr-MA')} DH TTC</span>
+                        </div>)}
                       </div>}
                     </div>
                   );
