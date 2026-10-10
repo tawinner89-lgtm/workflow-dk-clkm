@@ -5,6 +5,7 @@ import GroupedInventory from '@/components/GroupedInventory';
 import NewSaleModal from '@/components/NewSaleModal';
 import AddProductModal from '@/components/AddProductModal';
 import StockExportButton from '@/components/StockExportButton';
+import SalesActions from '@/components/SalesActions';
 import { confirmPendingSale, cancelPendingSale } from '@/app/actions';
 import { Check, X, PackageOpen, History, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -123,7 +124,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                       </td>
                       <td className="py-4 px-5">
                         <div className="flex justify-end gap-1.5">
-                          {sale.status === 'PENDING' ? (
+                          {sale.status === 'PENDING' && (
                             <>
                               <form action={confirmPendingSale.bind(null, sale.id)}>
                                 <button type="submit" className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Confirmer">
@@ -136,9 +137,8 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                 </button>
                               </form>
                             </>
-                          ) : (
-                            <span className="w-8"></span>
                           )}
+                          <SalesActions sale={sale} inventory={inventory} />
                         </div>
                       </td>
                     </tr>
