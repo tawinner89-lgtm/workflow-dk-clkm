@@ -89,7 +89,7 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
                   return (
                     <div key={item.id} className="min-w-0 rounded-lg bg-slate-50 px-2 py-1.5 dark:bg-slate-700/60">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="truncate text-[10px] font-semibold text-slate-700 dark:text-slate-100">{item.btu.replace('_', ' ')}</span>
+                        <span className="whitespace-nowrap text-[10px] font-semibold text-slate-700 dark:text-slate-100" title={item.btu.replace('_', ' ')}>{item.btu.replace(/\D/g, '')}</span>
                         <span className={`text-xs font-bold ${item.stock_quantity === 0 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{item.stock_quantity}</span>
                         <button type="button" onClick={() => handleAdjust(item.id, -1)} disabled={item.stock_quantity <= 0} className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30 dark:hover:bg-slate-600" title="Diminuer">
                           <Minus size={11} />

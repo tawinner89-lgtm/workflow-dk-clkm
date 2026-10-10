@@ -14,7 +14,7 @@ import { redirect } from 'next/navigation';
 
 export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string; page?: string } }) {
   const session = await getSession();
-  if (session?.role !== 'ADMIN') redirect('/admin');
+  if (session?.role !== 'ADMIN') redirect('/admin?next=%2Finventory');
   const activeTab = searchParams?.tab === 'history' ? 'history' : 'inventory';
 
   const inventory = await prisma.inventory.findMany({
@@ -26,6 +26,20 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
     activeTab === 'inventory' ? prisma.salesLog.findMany({ orderBy: { timestamp: 'desc' }, take: 50 }) : Promise.resolve([]),
     activeTab === 'history' ? prisma.stockAddition.count() : Promise.resolve(0),
   ]);
+  const salesForUi = sales.map((sale) => ({
+    id: Number(sale.id),
+    timestamp: sale.timestamp.toISOString(),
+    brand: sale.brand,
+    btu: sale.btu,
+    ac_type: sale.ac_type,
+    customer_name: sale.customer_name,
+    customer_phone: sale.customer_phone,
+    status: sale.status,
+    notes: sale.notes,
+  }));
+  const inventoryForActions = inventory.map(({ brand, btu, ac_type, stock_quantity }) => ({
+    brand, btu, ac_type, stock_quantity,
+  }));
   const historyPageSize = 100;
   const historyPageCount = Math.max(1, Math.ceil(historyCount / historyPageSize));
   const historyPage = Math.min(requestedHistoryPage, historyPageCount);
@@ -97,17 +111,17 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700">
-                  {sales.map(sale => (
+                  {salesForUi.map(sale => (
                     <tr key={sale.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition-colors">
                       <td className="py-4 px-5 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        {sale.timestamp.toLocaleString('fr-MA', { 
+                        {new Date(sale.timestamp).toLocaleString('fr-MA', { 
                           day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
                         }).replace(',', ' ')}
                       </td>
                       <td className="py-4 px-5">
                         <div className="font-medium text-slate-900 dark:text-white">{sale.brand || "-"}</div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">{sale.btu?.replace('_', ' ')} · {sale.ac_type}</div>
-                        {(sale as typeof sale & { notes?: string | null }).notes && <div className="text-[11px] text-blue-600 dark:text-blue-300">{(sale as typeof sale & { notes?: string | null }).notes}</div>}
+                        {sale.notes && <div className="text-[11px] text-blue-600 dark:text-blue-300">{sale.notes}</div>}
                       </td>
                       <td className="py-4 px-5">
                         <div className="text-sm font-medium text-slate-900 dark:text-white">{sale.customer_name || '-'}</div>
@@ -138,12 +152,12 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                               </form>
                             </>
                           )}
-                          <SalesActions sale={sale} inventory={inventory} />
+                          <SalesActions sale={sale} inventory={inventoryForActions} />
                         </div>
                       </td>
                     </tr>
                   ))}
-                  {sales.length === 0 && (
+                  {salesForUi.length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-400 text-sm">
                         Aucune vente enregistree.

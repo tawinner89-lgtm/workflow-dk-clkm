@@ -55,9 +55,27 @@ export async function cancelPendingSale(saleId: number) {
 
 const stockTrackedSaleStatuses = new Set(['PENDING', 'CONFIRMED']);
 
+type SaleActionResult = { ok: true } | { ok: false; error: string };
+class SaleActionError extends Error {}
+
+async function runSaleAction(name: string, action: () => Promise<void>): Promise<SaleActionResult> {
+  try {
+    await action();
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof SaleActionError) return { ok: false, error: error.message };
+    if (error instanceof Error && error.message === 'Non autorisé') {
+      return { ok: false, error: 'Session expirée. Reconnectez-vous.' };
+    }
+    console.error(`[SALE ACTION ${name}]`, error);
+    return { ok: false, error: 'Action impossible pour le moment. Réessayez.' };
+  }
+}
+
 export async function editSale(saleId: number, formData: FormData) {
+  return runSaleAction('edit', async () => {
   await requireAdminAuth();
-  if (!Number.isInteger(saleId) || saleId <= 0) throw new Error('Vente invalide.');
+  if (!Number.isInteger(saleId) || saleId <= 0) throw new SaleActionError('Vente invalide.');
 
   const brand = String(formData.get('brand') || '').trim();
   const btu = String(formData.get('btu') || '').toUpperCase();
@@ -65,17 +83,17 @@ export async function editSale(saleId: number, formData: FormData) {
   const customer_name = String(formData.get('customer_name') || '').trim();
   const customer_phone = String(formData.get('customer_phone') || '').trim();
   const notes = String(formData.get('notes') || '').trim();
-  if (!validBrand(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type)) throw new Error('Produit invalide.');
-  if (customer_name.length > 100 || customer_phone.length > 50 || notes.length > 2000) throw new Error('Les informations de la vente sont trop longues.');
+  if (!validBrand(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type)) throw new SaleActionError('Produit invalide.');
+  if (customer_name.length > 100 || customer_phone.length > 50 || notes.length > 2000) throw new SaleActionError('Les informations de la vente sont trop longues.');
 
   await prisma.$transaction(async (tx) => {
     const sale = await tx.salesLog.findUnique({ where: { id: saleId } });
-    if (!sale) throw new Error('Vente introuvable.');
+    if (!sale) throw new SaleActionError('Vente introuvable.');
 
     const productChanged = sale.brand !== brand || sale.btu !== btu || sale.ac_type !== ac_type;
     if (productChanged && stockTrackedSaleStatuses.has(sale.status || '')) {
       const oldItem = await tx.inventory.findUnique({ where: { brand_btu_ac_type: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } } });
-      if (!oldItem) throw new Error('Ancien produit introuvable; modification annulée.');
+      if (!oldItem) throw new SaleActionError('Ancien produit introuvable; modification annulée.');
       await tx.inventory.update({ where: { id: oldItem.id }, data: { stock_quantity: { increment: 1 } } });
       await tx.stockAddition.create({ data: { inventoryId: oldItem.id, brand: oldItem.brand, btu: oldItem.btu, ac_type: oldItem.ac_type, quantityAdded: 1, operation: 'RETURN', addedBy: 'Modification de vente (dashboard)' } });
 
@@ -83,9 +101,9 @@ export async function editSale(saleId: number, formData: FormData) {
         where: { brand, btu, ac_type, stock_quantity: { gt: 0 } },
         data: { stock_quantity: { decrement: 1 } },
       });
-      if (newStock.count !== 1) throw new Error('Le nouveau produit est introuvable ou son stock est épuisé.');
+      if (newStock.count !== 1) throw new SaleActionError('Le nouveau produit est introuvable ou son stock est épuisé.');
       const newItem = await tx.inventory.findUnique({ where: { brand_btu_ac_type: { brand, btu, ac_type } } });
-      if (!newItem) throw new Error('Nouveau produit introuvable.');
+      if (!newItem) throw new SaleActionError('Nouveau produit introuvable.');
       await tx.stockAddition.create({ data: { inventoryId: newItem.id, brand, btu, ac_type, quantityAdded: 1, operation: 'SALE', addedBy: 'Modification de vente (dashboard)' } });
     }
 
@@ -93,18 +111,20 @@ export async function editSale(saleId: number, formData: FormData) {
   }, { isolationLevel: 'Serializable' });
 
   revalidatePath('/inventory');
+  });
 }
 
 export async function deleteSale(saleId: number) {
+  return runSaleAction('delete', async () => {
   await requireAdminAuth();
-  if (!Number.isInteger(saleId) || saleId <= 0) throw new Error('Vente invalide.');
+  if (!Number.isInteger(saleId) || saleId <= 0) throw new SaleActionError('Vente invalide.');
 
   await prisma.$transaction(async (tx) => {
     const sale = await tx.salesLog.findUnique({ where: { id: saleId } });
-    if (!sale) throw new Error('Vente introuvable.');
+    if (!sale) throw new SaleActionError('Vente introuvable.');
     if (stockTrackedSaleStatuses.has(sale.status || '')) {
       const item = await tx.inventory.findUnique({ where: { brand_btu_ac_type: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } } });
-      if (!item) throw new Error('Produit de la vente introuvable; suppression annulée.');
+      if (!item) throw new SaleActionError('Produit de la vente introuvable; suppression annulée.');
       await tx.inventory.update({ where: { id: item.id }, data: { stock_quantity: { increment: 1 } } });
       await tx.stockAddition.create({ data: { inventoryId: item.id, brand: item.brand, btu: item.btu, ac_type: item.ac_type, quantityAdded: 1, operation: 'RETURN', addedBy: 'Suppression de vente (dashboard)' } });
     }
@@ -112,27 +132,30 @@ export async function deleteSale(saleId: number) {
   }, { isolationLevel: 'Serializable' });
 
   revalidatePath('/inventory');
+  });
 }
 
 export async function duplicateSale(saleId: number) {
+  return runSaleAction('duplicate', async () => {
   await requireAdminAuth();
-  if (!Number.isInteger(saleId) || saleId <= 0) throw new Error('Vente invalide.');
+  if (!Number.isInteger(saleId) || saleId <= 0) throw new SaleActionError('Vente invalide.');
 
   await prisma.$transaction(async (tx) => {
     const sale = await tx.salesLog.findUnique({ where: { id: saleId } });
-    if (!sale) throw new Error('Vente introuvable.');
+    if (!sale) throw new SaleActionError('Vente introuvable.');
     const stock = await tx.inventory.updateMany({
       where: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, stock_quantity: { gt: 0 } },
       data: { stock_quantity: { decrement: 1 } },
     });
-    if (stock.count !== 1) throw new Error('Stock épuisé ou produit introuvable; la vente n’a pas été dupliquée.');
+    if (stock.count !== 1) throw new SaleActionError('Stock épuisé ou produit introuvable; la vente n’a pas été dupliquée.');
     const item = await tx.inventory.findUnique({ where: { brand_btu_ac_type: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } } });
-    if (!item) throw new Error('Produit introuvable; la vente n’a pas été dupliquée.');
+    if (!item) throw new SaleActionError('Produit introuvable; la vente n’a pas été dupliquée.');
     await tx.stockAddition.create({ data: { inventoryId: item.id, brand: item.brand, btu: item.btu, ac_type: item.ac_type, quantityAdded: 1, operation: 'SALE', addedBy: 'Duplication de vente (dashboard)' } });
     await tx.salesLog.create({ data: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, customer_name: sale.customer_name, customer_phone: sale.customer_phone, notes: sale.notes, status: 'CONFIRMED' } });
   }, { isolationLevel: 'Serializable' });
 
   revalidatePath('/inventory');
+  });
 }
 
 export async function recordManualSale(formData: FormData) {

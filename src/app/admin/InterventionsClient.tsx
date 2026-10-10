@@ -265,6 +265,11 @@ export default function InterventionsClient() {
       const json = await res.json();
       if (json.success) {
         localStorage.setItem('adminToken', 'dkclim-authed');
+        const returnTo = new URLSearchParams(window.location.search).get('next');
+        if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
+          window.location.assign(returnTo);
+          return;
+        }
         setIsAdminAuthed(true);
         fetchInterventions();
         fetchTechs();

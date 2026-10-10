@@ -14,18 +14,22 @@ type Sale = {
   notes: string | null;
 };
 
-type Product = { brand: string; btu: string; ac_type: string };
+type Product = { brand: string; btu: string; ac_type: string; stock_quantity: number };
+type SaleActionResult = { ok: true } | { ok: false; error: string };
 
 export default function SalesActions({ sale, inventory }: { sale: Sale; inventory: Product[] }) {
   const [editing, setEditing] = useState(false);
   const [productKey, setProductKey] = useState(`${sale.brand}::${sale.btu}::${sale.ac_type}`);
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
+  const canDuplicate = inventory.some((item) =>
+    item.brand === sale.brand && item.btu === sale.btu && item.ac_type === sale.ac_type && item.stock_quantity > 0
+  );
   const products = useMemo(() => {
     const options = new Map<string, Product>();
     for (const item of inventory) options.set(`${item.brand}::${item.btu}::${item.ac_type}`, item);
     const currentKey = `${sale.brand}::${sale.btu}::${sale.ac_type}`;
-    if (!options.has(currentKey)) options.set(currentKey, { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type });
+    if (!options.has(currentKey)) options.set(currentKey, { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, stock_quantity: 0 });
     return Array.from(options.entries());
   }, [inventory, sale]);
 
@@ -38,33 +42,40 @@ export default function SalesActions({ sale, inventory }: { sale: Sale; inventor
     formData.set('ac_type', ac_type);
     setError('');
     startTransition(() => {
-      void editSale(sale.id, formData).then(() => {
-        setEditing(false);
+      void editSale(sale.id, formData).then((result) => {
+        if (result.ok) setEditing(false);
+        else setError(result.error);
       }).catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : 'La modification a échoué.');
+        console.error('Modification de vente impossible:', cause);
+        setError('La modification a échoué. Réessayez.');
       });
     });
   }
 
-  function runAction(action: () => Promise<void>, confirmMessage: string) {
+  function runAction(action: () => Promise<SaleActionResult>, confirmMessage: string) {
     if (!window.confirm(confirmMessage)) return;
     setError('');
     startTransition(() => {
-      void action().catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : 'Action impossible.');
+      void action().then((result) => {
+        if (!result.ok) setError(result.error);
+      }).catch((cause: unknown) => {
+        console.error('Action sur la vente impossible:', cause);
+        setError('Action impossible. Réessayez.');
       });
     });
   }
 
   return (
-    <>
+    <div className="flex flex-col items-end">
       <div className="flex items-center justify-end gap-1">
         <button type="button" onClick={() => { setProductKey(`${sale.brand}::${sale.btu}::${sale.ac_type}`); setError(''); setEditing(true); }} disabled={pending} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-50 dark:hover:bg-slate-700" title="Modifier la vente" aria-label="Modifier la vente">
           <Pencil size={15} />
         </button>
-        <button type="button" onClick={() => runAction(() => duplicateSale(sale.id), 'Créer une nouvelle vente identique ? Le stock sera diminué si le produit est disponible.')} disabled={pending} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 disabled:opacity-50 dark:hover:bg-slate-700" title="Dupliquer la vente" aria-label="Dupliquer la vente">
-          <Copy size={15} />
-        </button>
+        <span title={canDuplicate ? 'Dupliquer la vente' : 'Stock indisponible pour cette vente'}>
+          <button type="button" onClick={() => runAction(() => duplicateSale(sale.id), 'Créer une nouvelle vente identique ? Le stock sera diminué si le produit est disponible.')} disabled={pending || !canDuplicate} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 disabled:opacity-50 dark:hover:bg-slate-700" aria-label={canDuplicate ? 'Dupliquer la vente' : 'Duplication impossible : stock indisponible'}>
+            <Copy size={15} />
+          </button>
+        </span>
         <button type="button" onClick={() => runAction(() => deleteSale(sale.id), 'Supprimer cette vente ? Le stock sera remis si cette vente avait diminué le stock.')} disabled={pending} className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-900/30" title="Supprimer la vente" aria-label="Supprimer la vente">
           <Trash2 size={15} />
         </button>
@@ -100,6 +111,6 @@ export default function SalesActions({ sale, inventory }: { sale: Sale; inventor
           </form>
         </section>
       </div>}
-    </>
+    </div>
   );
 }
