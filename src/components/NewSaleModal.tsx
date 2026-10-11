@@ -45,10 +45,10 @@ export default function NewSaleModal({ inventory = [] }: { inventory?: Inventory
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100/80">
-              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Ajouter une vente</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/20 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[88vh] overflow-hidden border border-slate-100 flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-slate-100/80">
+              <h2 className="text-base font-semibold text-slate-900 tracking-tight">Ajouter une vente</h2>
               <button 
                 onClick={() => setIsOpen(false)}
                 className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors"
@@ -57,56 +57,56 @@ export default function NewSaleModal({ inventory = [] }: { inventory?: Inventory
               </button>
             </div>
             
-            <form action={handleSubmit} className="p-6 space-y-4">
-              <div className="space-y-1">
+            <form action={handleSubmit} className="p-4 space-y-3 overflow-y-auto">
+              <div className="space-y-0.5">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Marque</label>
                 <select name="brand" required value={brand} onChange={(event) => {
                   const nextBrand = event.target.value;
                   const first = availableProducts.find((item) => item.brand === nextBrand);
                   setBrand(nextBrand); setBtu(first?.btu || ''); setAcType(first?.ac_type || '');
-                }} className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
+                }} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
                   <option value="">{brands.length ? 'Selectionnez une marque...' : 'Aucun produit en stock'}</option>
                   {brands.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </div>
               
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Puissance (BTU)</label>
                 <select name="btu" required value={btu} onChange={(event) => {
                   const nextBtu = event.target.value;
                   const first = productsForBrand.find((item) => item.btu === nextBtu);
                   setBtu(nextBtu); setAcType(first?.ac_type || '');
-                }} className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
+                }} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
                   <option value="">Selectionnez la puissance...</option>
                   {btus.map((option) => <option key={option} value={option}>{option.replace('_', ' ')}</option>)}
                 </select>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Type</label>
-                <select name="ac_type" required value={acType} onChange={(event) => setAcType(event.target.value)} className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
+                <select name="ac_type" required value={acType} onChange={(event) => setAcType(event.target.value)} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all">
                   <option value="">Selectionnez un type...</option>
                   {typesForBtu.map((type) => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Nom du Client</label>
-                <input type="text" name="customer_name" placeholder="Ex: Othman Tazi" className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
+                <input type="text" name="customer_name" placeholder="Ex: Othman Tazi" className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Telephone</label>
-                <input type="text" name="customer_phone" placeholder="Ex: 0612345678" className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
+                <input type="text" name="customer_phone" placeholder="Ex: 0612345678" className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Adresse de livraison</label>
-                <input type="text" name="customer_address" maxLength={250} placeholder="Ville, quartier et adresse" className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
+                <input type="text" name="customer_address" maxLength={250} placeholder="Ville, quartier et adresse" className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
               </div>
 
-              <div className="pt-4">
-                <button type="submit" disabled={isSubmitting || availableProducts.length === 0} className="w-full bg-slate-900 text-white rounded-xl p-3 text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm">
+              <div className="pt-1">
+                <button type="submit" disabled={isSubmitting || availableProducts.length === 0} className="w-full bg-slate-900 text-white rounded-lg p-2.5 text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm">
                   {isSubmitting ? "Enregistrement..." : "Enregistrer la vente"}
                 </button>
               </div>
