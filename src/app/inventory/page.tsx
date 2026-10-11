@@ -7,6 +7,7 @@ import AddProductModal from '@/components/AddProductModal';
 import StockExportButton from '@/components/StockExportButton';
 import SalesActions from '@/components/SalesActions';
 import SaleStatusSelect from '@/components/SaleStatusSelect';
+import DeliverySettingsButton from '@/components/DeliverySettingsButton';
 import QuoteConsole from '@/components/QuoteConsole';
 import { PackageOpen, History, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -23,10 +24,11 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
   });
 
   const requestedHistoryPage = Math.max(1, Number.parseInt(searchParams?.page || '1', 10) || 1);
-  const [sales, historyCount, quotes] = await Promise.all([
+  const [sales, historyCount, quotes, deliverySettings] = await Promise.all([
     activeTab === 'inventory' ? prisma.salesLog.findMany({ orderBy: { timestamp: 'desc' }, take: 50 }) : Promise.resolve([]),
     activeTab === 'history' ? prisma.stockAddition.count() : Promise.resolve(0),
     activeTab === 'quotes' ? prisma.quote.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }) : Promise.resolve([]),
+    prisma.deliverySettings.findUnique({ where: { id: 1 } }),
   ]);
   const salesForUi = sales.map((sale) => ({
     id: Number(sale.id),
@@ -69,7 +71,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Inventaire & Ventes</h1>
             <p className="text-sm text-slate-500 font-medium mt-1">Gestion des stocks et confirmation des ventes WhatsApp</p>
           </div>
-          <div className="flex gap-3"><StockExportButton />{activeTab === 'inventory' && <><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></>}</div>
+          <div className="flex flex-wrap gap-3"><DeliverySettingsButton phone={deliverySettings?.phone || null} /><StockExportButton />{activeTab === 'inventory' && <><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></>}</div>
         </div>
         <nav className="mt-6 flex w-fit gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800" aria-label="Sections de l'inventaire">
           <Link href="/inventory" aria-current={activeTab === 'inventory' ? 'page' : undefined} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>

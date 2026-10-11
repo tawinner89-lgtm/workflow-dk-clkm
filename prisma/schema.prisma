@@ -105,6 +105,14 @@ model SalesLog {
   @@map("SalesLog")
 }
 
+model DeliverySettings {
+  id        Int      @id
+  phone     String
+  updatedAt DateTime @updatedAt
+
+  @@map("DeliverySettings")
+}
+
 model Quote {
   id                   String   @id @default(cuid())
   reference            String   @unique
