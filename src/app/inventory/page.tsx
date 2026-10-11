@@ -175,7 +175,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
           </div>
         </div>
 
-      </div> : activeTab === 'quotes' ? <QuoteConsole inventory={inventory.map(({ id, brand, btu, ac_type, stock_quantity }) => ({ id, brand, btu, ac_type, stock_quantity }))} quotes={quotes.map((quote) => ({
+      </div> : activeTab === 'quotes' ? <QuoteConsole inventory={inventory.map(({ id, brand, btu, ac_type, stock_quantity, price_ttc }) => ({ id, brand, btu, ac_type, stock_quantity, price_ttc }))} quotes={quotes.map((quote) => ({
         id: quote.id, reference: quote.reference, createdAt: quote.createdAt.toISOString(),
         customerName: quote.customerName, customerPhone: quote.customerPhone, customerAddress: quote.customerAddress,
         brand: quote.brand, btu: quote.btu, acType: quote.acType, modelName: quote.modelName,

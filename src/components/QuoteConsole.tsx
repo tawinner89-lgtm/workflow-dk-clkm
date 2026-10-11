@@ -5,7 +5,7 @@ import { Check, FileDown, FilePlus2, X } from 'lucide-react';
 import { cancelQuote, convertQuoteToSale, createQuote } from '@/app/quote-actions';
 import { getCatalogOffers, servicePrices } from '@/lib/business';
 
-type Product = { id: number; brand: string; btu: string; ac_type: string; stock_quantity: number };
+type Product = { id: number; brand: string; btu: string; ac_type: string; stock_quantity: number; price_ttc: number | null };
 type Quote = {
   id: string; reference: string; createdAt: string; customerName: string; customerPhone: string;
   customerAddress: string | null; brand: string; btu: string; acType: string; modelName: string;
@@ -68,7 +68,10 @@ export default function QuoteConsole({ inventory, quotes }: { inventory: Product
   const [pending, startTransition] = useTransition();
   const product = inventory.find((item) => String(item.id) === productId);
   const offers = useMemo(() => product?.ac_type === 'Split' ? getCatalogOffers(product.brand, product.btu) : [], [product]);
-  const offer = offers.find((item) => item.modele === modelName);
+  const stockPriceSelected = modelName === '__STOCK_PRICE__';
+  const offer = stockPriceSelected ? offers.find((item) => item.prix_promo === product?.price_ttc) : offers.find((item) => item.modele === modelName);
+  const selectedPrice = stockPriceSelected ? product?.price_ttc : offer?.prix_promo;
+  const hasPriceChoices = product?.price_ttc !== null && product?.price_ttc !== undefined || offers.length > 0;
   const installationPrice = installationRequested && !offer?.installation_incluse ? Number(servicePrices.installation) : 0;
   const matchingStock = (quote: Quote) => inventory.find((item) => item.brand === quote.brand && item.btu === quote.btu && item.ac_type === quote.acType)?.stock_quantity || 0;
 
@@ -126,11 +129,11 @@ export default function QuoteConsole({ inventory, quotes }: { inventory: Product
           <label className="block font-medium">Adresse / ville<input name="customerAddress" maxLength={250} className="mt-1 w-full rounded-lg border p-2.5 text-slate-900" /></label>
           <label className="block font-medium">Produit<select name="productId" required value={productId} onChange={(event) => { setProductId(event.target.value); setModelName(''); }} className="mt-1 w-full rounded-lg border bg-white p-2.5 text-slate-900"><option value="">Choisir un produit...</option>{inventory.map((item) => <option key={item.id} value={item.id}>{item.brand} · {item.btu.replace('_', ' ')} · {item.ac_type}</option>)}</select></label>
           {product && <><p className="text-xs text-slate-500">Stock actuel : {product.stock_quantity} · prix du devis sans réservation</p>
-            {offers.length ? <label className="block font-medium">Modèle / tarif catalogue<select name="modelName" required value={modelName} onChange={(event) => setModelName(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2.5 text-slate-900"><option value="">Choisir le modèle...</option>{offers.map((item) => <option key={item.modele} value={item.modele}>{item.modele} · {dh(item.prix_promo)}{item.installation_incluse ? ' · installation incluse' : ''}</option>)}</select></label> : <><label className="block font-medium">Modèle<input name="modelName" required maxLength={100} value={modelName} onChange={(event) => setModelName(event.target.value)} className="mt-1 w-full rounded-lg border p-2.5 text-slate-900" /></label><label className="block font-medium">Prix unitaire TTC validé par l’administrateur (DH)<input name="manualPrice" type="number" required min={1} max={1000000} step={1} className="mt-1 w-full rounded-lg border p-2.5 text-slate-900" /></label></>}
+            {hasPriceChoices ? <label className="block font-medium">Modèle / prix TTC<select name="modelName" required value={modelName} onChange={(event) => setModelName(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2.5 text-slate-900"><option value="">Choisir le prix...</option>{product.price_ttc !== null && <option value="__STOCK_PRICE__">Prix du stock · {dh(product.price_ttc)}</option>}{offers.map((item) => <option key={item.modele} value={item.modele}>{item.modele} · {dh(item.prix_promo)}{item.installation_incluse ? ' · installation incluse' : ''}</option>)}</select></label> : <><label className="block font-medium">Modèle<input name="modelName" required maxLength={100} value={modelName} onChange={(event) => setModelName(event.target.value)} className="mt-1 w-full rounded-lg border p-2.5 text-slate-900" /></label><label className="block font-medium">Prix unitaire TTC validé par l’administrateur (DH)<input name="manualPrice" type="number" required min={1} max={1000000} step={1} className="mt-1 w-full rounded-lg border p-2.5 text-slate-900" /></label></>}
             <label className="block font-medium">Quantité<input name="quantity" type="number" required min={1} max={100} step={1} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} className="mt-1 w-full rounded-lg border p-2.5 text-slate-900" /></label>
             <label className="flex items-center gap-2"><input name="installationRequested" type="checkbox" checked={installationRequested} onChange={(event) => setInstallationRequested(event.target.checked)} /> Ajouter l’installation{offer?.installation_incluse ? ' (déjà incluse)' : ` · ${dh(Number(servicePrices.installation))} par unité si n7as dayz`}</label>
             {installationRequested && !offer?.installation_incluse && <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Prix valable uniquement si les tubes en cuivre sont déjà pré-installés. Sinon, une visite et un devis complémentaire sont nécessaires.</p>}
-            {(offer || !offers.length) && <p className="font-semibold">{offer ? `Total : ${dh(quantity * (offer.prix_promo + installationPrice))}` : 'Le total sera calculé avec le prix saisi.'}</p>}
+            {(selectedPrice || !hasPriceChoices) && <p className="font-semibold">{selectedPrice ? `Total : ${dh(quantity * (selectedPrice + installationPrice))}` : 'Le total sera calculé avec le prix saisi.'}</p>}
           </>}
           {error && <p role="alert" className="rounded-lg bg-red-50 p-2 text-red-700">{error}</p>}
           <button type="submit" disabled={pending || !product} className="w-full rounded-lg bg-slate-900 p-3 font-semibold text-white disabled:opacity-50">{pending ? 'Enregistrement...' : 'Créer le devis'}</button>

@@ -23,6 +23,7 @@ export async function GET() {
     Type: item.ac_type,
     'Puissance BTU': item.btu.replace('_', ' '),
     'Quantité actuelle': item.stock_quantity,
+    'Prix TTC (DH)': item.price_ttc ?? '',
   })));
   const salesSheet = XLSX.utils.json_to_sheet(sales.map((sale) => ({
     Date: sale.timestamp.toISOString(),

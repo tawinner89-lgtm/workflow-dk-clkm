@@ -81,6 +81,21 @@ export default function AddProductModal({ inventory = [] }: { inventory?: Invent
                 />
               </div>
 
+              <div className="space-y-2">
+                <label htmlFor="product-price" className="text-sm font-semibold text-slate-700 block">Prix de vente TTC (DH)</label>
+                <input
+                  id="product-price"
+                  name="price_ttc"
+                  type="number"
+                  min="1"
+                  max="1000000"
+                  step="1"
+                  placeholder="Ex. 3800"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                />
+                <p className="text-xs text-slate-500">Facultatif. Si le produit existe déjà, un prix saisi met son prix à jour.</p>
+              </div>
+
               <div className="pt-2">
                 <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-emerald-500/30">
                   Ajouter à l&apos;inventaire

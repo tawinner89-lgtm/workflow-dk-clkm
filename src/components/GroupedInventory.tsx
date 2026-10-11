@@ -11,6 +11,7 @@ type InventoryItem = {
   btu: string;
   ac_type: string;
   stock_quantity: number;
+  price_ttc: number | null;
 };
 
 async function handleAdjust(id: number, amount: number) {
@@ -98,8 +99,8 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
                           <Plus size={11} />
                         </button>
                       </div>
-                      {offers.length > 0 && <div className="mt-1 space-y-0.5" title={offers.map((offer) => `${offer.modele}: ${offer.prix_promo} DH TTC`).join(' · ')}>
-                        {offers.map((offer) => <div key={`${offer.modele}-${offer.prix_promo}`} className="flex min-w-0 items-baseline justify-between gap-1 text-[9px] leading-3">
+                      {(item.price_ttc !== null || offers.length > 0) && <div className="mt-1 space-y-0.5" title={item.price_ttc !== null ? `Prix stock : ${item.price_ttc} DH TTC` : offers.map((offer) => `${offer.modele}: ${offer.prix_promo} DH TTC`).join(' · ')}>
+                        {item.price_ttc !== null ? <div className="text-[10px] font-semibold text-slate-800 dark:text-slate-100">{item.price_ttc.toLocaleString('fr-MA')} DH TTC</div> : offers.map((offer) => <div key={`${offer.modele}-${offer.prix_promo}`} className="flex min-w-0 items-baseline justify-between gap-1 text-[9px] leading-3">
                           {offers.length > 1 && <span className="truncate text-slate-500">{offer.modele}</span>}
                           <span className="shrink-0 font-semibold text-slate-800 dark:text-slate-100">{offer.prix_promo.toLocaleString('fr-MA')} DH TTC</span>
                         </div>)}

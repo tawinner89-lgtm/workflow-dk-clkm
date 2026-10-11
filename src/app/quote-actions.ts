@@ -41,9 +41,15 @@ export async function createQuote(formData: FormData): Promise<QuoteResult> {
     const product = await prisma.inventory.findUnique({ where: { id: productId } });
     if (!product) throw new QuoteError('Produit introuvable dans le stock.');
     const offers = product.ac_type === 'Split' ? getCatalogOffers(product.brand, product.btu) : [];
-    const offer = offers.find((candidate) => candidate.modele === modelName);
+    const stockPriceSelected = modelName === '__STOCK_PRICE__';
+    if (stockPriceSelected && product.price_ttc === null) throw new QuoteError('Prix du stock indisponible.');
+    const offer = stockPriceSelected
+      ? offers.find((candidate) => candidate.prix_promo === product.price_ttc)
+      : offers.find((candidate) => candidate.modele === modelName);
     let unitPrice: number;
-    if (offers.length > 0) {
+    if (stockPriceSelected) {
+      unitPrice = product.price_ttc!;
+    } else if (offers.length > 0) {
       if (!offer) throw new QuoteError('Sélectionnez un modèle et un prix du catalogue.');
       unitPrice = offer.prix_promo;
     } else {
@@ -63,7 +69,7 @@ export async function createQuote(formData: FormData): Promise<QuoteResult> {
     await prisma.quote.create({ data: {
       reference, customerName, customerPhone, customerAddress: customerAddress || null,
       brand: product.brand, btu: product.btu, acType: product.ac_type,
-      modelName: offer?.modele || modelName, quantity, unitPrice,
+      modelName: offer?.modele || (stockPriceSelected ? 'Prix du stock' : modelName), quantity, unitPrice,
       installationPrice, installationIncluded,
     } });
   });

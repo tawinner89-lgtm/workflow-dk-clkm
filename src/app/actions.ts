@@ -224,14 +224,16 @@ export async function addInventoryProduct(formData: FormData) {
   const ac_type = String(formData.get('ac_type') || 'Split');
   const rawStock = Number(formData.get('stock'));
   const stock_quantity = Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : -1;
+  const rawPrice = String(formData.get('price_ttc') || '').trim();
+  const price_ttc = rawPrice === '' ? null : Number(rawPrice);
   
   const normalizedBrand = String(brand || '').trim();
-  if (validBrand(normalizedBrand) && catalogBtuOptions.includes(btu) && catalogAcTypes.includes(ac_type) && stock_quantity >= 0) {
+  if (validBrand(normalizedBrand) && catalogBtuOptions.includes(btu) && catalogAcTypes.includes(ac_type) && stock_quantity >= 0 && (price_ttc === null || (Number.isSafeInteger(price_ttc) && price_ttc > 0 && price_ttc <= 1_000_000))) {
     await prisma.$transaction(async (tx) => {
       const inventory = await tx.inventory.upsert({
         where: { brand_btu_ac_type: { brand: normalizedBrand, btu, ac_type } },
-        create: { brand: normalizedBrand, btu, ac_type, stock_quantity },
-        update: { stock_quantity: { increment: stock_quantity } },
+        create: { brand: normalizedBrand, btu, ac_type, stock_quantity, price_ttc },
+        update: { stock_quantity: { increment: stock_quantity }, ...(price_ttc === null ? {} : { price_ttc }) },
       });
       await tx.stockAddition.create({
         data: { inventoryId: inventory.id, brand: normalizedBrand, btu, ac_type, quantityAdded: stock_quantity, operation: 'ADD', addedBy: 'Administrateur dashboard' },
@@ -241,7 +243,7 @@ export async function addInventoryProduct(formData: FormData) {
     revalidatePath('/admin');
     return;
   }
-  throw new Error('Marque, puissance ou quantité invalide.');
+  throw new Error('Marque, puissance, quantité ou prix invalide.');
 }
 
 export async function deleteInventoryBrand(brand: string) {

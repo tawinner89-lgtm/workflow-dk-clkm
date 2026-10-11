@@ -23,14 +23,15 @@ export async function POST(request: Request) {
     const btu = String(body.btu ?? '').toUpperCase();
     const ac_type = String(body.ac_type || 'Split');
     const stockQuantity = Number(body.stock_quantity);
-    if (!/^[A-Za-z0-9À-ž][A-Za-z0-9À-ž .&'’-]{0,49}$/i.test(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type) || !Number.isInteger(stockQuantity) || stockQuantity < 0) {
-      return NextResponse.json({ success: false, error: 'Produit ou quantité invalide.' }, { status: 400 });
+    const priceTtc = body.price_ttc === undefined || body.price_ttc === null || body.price_ttc === '' ? null : Number(body.price_ttc);
+    if (!/^[A-Za-z0-9À-ž][A-Za-z0-9À-ž .&'’-]{0,49}$/i.test(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type) || !Number.isInteger(stockQuantity) || stockQuantity < 0 || (priceTtc !== null && (!Number.isSafeInteger(priceTtc) || priceTtc <= 0 || priceTtc > 1_000_000))) {
+      return NextResponse.json({ success: false, error: 'Produit, quantité ou prix invalide.' }, { status: 400 });
     }
     const data = await prisma.$transaction(async (tx) => {
       const item = await tx.inventory.upsert({
         where: { brand_btu_ac_type: { brand, btu, ac_type } },
-        create: { brand, btu, ac_type, stock_quantity: stockQuantity },
-        update: { stock_quantity: { increment: stockQuantity } },
+        create: { brand, btu, ac_type, stock_quantity: stockQuantity, price_ttc: priceTtc },
+        update: { stock_quantity: { increment: stockQuantity }, ...(priceTtc === null ? {} : { price_ttc: priceTtc }) },
       });
       await tx.stockAddition.create({ data: { inventoryId: item.id, brand, btu, ac_type, quantityAdded: stockQuantity, operation: 'ADD', addedBy: 'Administrateur dashboard' } });
       return item;

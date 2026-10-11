@@ -81,6 +81,7 @@ model Inventory {
   btu            String
   ac_type        String   @default("Split")
   stock_quantity Int
+  price_ttc      Int?
 
   @@unique([brand, btu, ac_type])
   @@map("Inventory")
