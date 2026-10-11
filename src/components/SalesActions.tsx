@@ -1,8 +1,8 @@
 'use client';
 
 import { type FormEvent, useMemo, useState, useTransition } from 'react';
-import { Copy, Pencil, Trash2, X } from 'lucide-react';
-import { deleteSale, duplicateSale, editSale } from '@/app/actions';
+import { BellRing, Check, Copy, Pencil, Trash2, X } from 'lucide-react';
+import { deleteSale, duplicateSale, editSale, notifyDeliveryService } from '@/app/actions';
 
 type Sale = {
   id: number;
@@ -11,6 +11,9 @@ type Sale = {
   ac_type: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_address: string | null;
+  status: string | null;
+  deliveryNotifiedAt: string | null;
   notes: string | null;
 };
 
@@ -71,6 +74,7 @@ export default function SalesActions({ sale, inventory }: { sale: Sale; inventor
         <button type="button" onClick={() => { setProductKey(`${sale.brand}::${sale.btu}::${sale.ac_type}`); setError(''); setEditing(true); }} disabled={pending} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-50 dark:hover:bg-slate-700" title="Modifier la vente" aria-label="Modifier la vente">
           <Pencil size={15} />
         </button>
+        {sale.deliveryNotifiedAt ? <span className="rounded-md p-1.5 text-emerald-600" title={`Livraison notifiée le ${new Date(sale.deliveryNotifiedAt).toLocaleString('fr-MA')}`} aria-label="Livraison déjà notifiée"><Check size={15} /></span> : <button type="button" onClick={() => runAction(() => notifyDeliveryService(sale.id), `Notifier le service livraison pour la commande de ${sale.customer_name || 'ce client'} ?`)} disabled={pending || !['CONFIRMED', 'DELIVERED'].includes(sale.status || '')} className="rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 dark:hover:bg-slate-700" title={['CONFIRMED', 'DELIVERED'].includes(sale.status || '') ? 'Notifier le service livraison' : 'Confirmez la vente avant la notification'} aria-label="Notifier le service livraison"><BellRing size={15} /></button>}
         <span title={canDuplicate ? 'Dupliquer la vente' : 'Stock indisponible pour cette vente'}>
           <button type="button" onClick={() => runAction(() => duplicateSale(sale.id), 'Créer une nouvelle vente identique ? Le stock sera diminué si le produit est disponible.')} disabled={pending || !canDuplicate} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 disabled:opacity-50 dark:hover:bg-slate-700" aria-label={canDuplicate ? 'Dupliquer la vente' : 'Duplication impossible : stock indisponible'}>
             <Copy size={15} />
@@ -99,6 +103,9 @@ export default function SalesActions({ sale, inventory }: { sale: Sale; inventor
             </label>
             <label className="block text-sm font-medium">Téléphone
               <input name="customer_phone" maxLength={50} defaultValue={sale.customer_phone || ''} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-600 dark:bg-slate-900" />
+            </label>
+            <label className="block text-sm font-medium">Adresse de livraison
+              <input name="customer_address" maxLength={250} defaultValue={sale.customer_address || ''} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-600 dark:bg-slate-900" />
             </label>
             <label className="block text-sm font-medium">Notes
               <textarea name="notes" maxLength={2000} defaultValue={sale.notes || ''} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-600 dark:bg-slate-900" />

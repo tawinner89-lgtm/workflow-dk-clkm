@@ -112,7 +112,7 @@ export async function convertQuoteToSale(quoteId: string): Promise<QuoteResult> 
       } });
       await tx.salesLog.createMany({ data: Array.from({ length: quote.quantity }, (_, index) => ({
         brand: quote.brand, btu: quote.btu, ac_type: quote.acType,
-        customer_name: quote.customerName, customer_phone: quote.customerPhone,
+        customer_name: quote.customerName, customer_phone: quote.customerPhone, customer_address: quote.customerAddress,
         status: 'CONFIRMED',
         notes: `Devis ${quote.reference} · ${quote.modelName} · ${quote.unitPrice} DH TTC${quote.installationPrice ? ` · Installation ${quote.installationPrice} DH TTC (pré-câblage existant)` : ''}${quote.installationIncluded ? ' · Installation incluse' : ''}${quote.quantity > 1 ? ` · unité ${index + 1}/${quote.quantity}` : ''}`,
       })) });

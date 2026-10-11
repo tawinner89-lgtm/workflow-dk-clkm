@@ -1,0 +1,3 @@
+ALTER TABLE "SalesLog"
+  ADD COLUMN IF NOT EXISTS customer_address TEXT,
+  ADD COLUMN IF NOT EXISTS "deliveryNotifiedAt" TIMESTAMP(3);

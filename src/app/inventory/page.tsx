@@ -36,8 +36,10 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
     ac_type: sale.ac_type,
     customer_name: sale.customer_name,
     customer_phone: sale.customer_phone,
+    customer_address: sale.customer_address,
     status: sale.status,
     notes: sale.notes,
+    deliveryNotifiedAt: sale.deliveryNotifiedAt?.toISOString() || null,
   }));
   const inventoryForActions = inventory.map(({ brand, btu, ac_type, stock_quantity }) => ({
     brand, btu, ac_type, stock_quantity,
@@ -131,6 +133,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                       <td className="py-4 px-5">
                         <div className="text-sm font-medium text-slate-900 dark:text-white">{sale.customer_name || '-'}</div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">{sale.customer_phone || '-'}</div>
+                        {sale.customer_address && <div className="max-w-44 truncate text-xs text-slate-500 dark:text-slate-400" title={sale.customer_address}>{sale.customer_address}</div>}
                       </td>
                       <td className="py-4 px-5">
                         <SaleStatusSelect saleId={sale.id} status={sale.status} />

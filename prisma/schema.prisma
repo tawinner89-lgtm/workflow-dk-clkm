@@ -95,9 +95,11 @@ model SalesLog {
   ac_type        String   @default("Split")
   customer_name  String?
   customer_phone String?
+  customer_address String?
   status         String?  @default("PENDING")
   notes          String?
   syncHash       String?  @unique
+  deliveryNotifiedAt DateTime?
 
   @@index([status])
   @@map("SalesLog")

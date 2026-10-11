@@ -63,9 +63,10 @@ export async function editSale(saleId: number, formData: FormData) {
   const ac_type = String(formData.get('ac_type') || 'Split');
   const customer_name = String(formData.get('customer_name') || '').trim();
   const customer_phone = String(formData.get('customer_phone') || '').trim();
+  const customer_address = String(formData.get('customer_address') || '').trim();
   const notes = String(formData.get('notes') || '').trim();
   if (!validBrand(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type)) throw new SaleActionError('Produit invalide.');
-  if (customer_name.length > 100 || customer_phone.length > 50 || notes.length > 2000) throw new SaleActionError('Les informations de la vente sont trop longues.');
+  if (customer_name.length > 100 || customer_phone.length > 50 || customer_address.length > 250 || notes.length > 2000) throw new SaleActionError('Les informations de la vente sont trop longues.');
 
   await prisma.$transaction(async (tx) => {
     const sale = await tx.salesLog.findUnique({ where: { id: saleId } });
@@ -88,7 +89,7 @@ export async function editSale(saleId: number, formData: FormData) {
       await tx.stockAddition.create({ data: { inventoryId: newItem.id, brand, btu, ac_type, quantityAdded: 1, operation: 'SALE', addedBy: 'Modification de vente (dashboard)' } });
     }
 
-    await tx.salesLog.update({ where: { id: saleId }, data: { brand, btu, ac_type, customer_name: customer_name || null, customer_phone: customer_phone || null, notes: notes || null } });
+    await tx.salesLog.update({ where: { id: saleId }, data: { brand, btu, ac_type, customer_name: customer_name || null, customer_phone: customer_phone || null, customer_address: customer_address || null, notes: notes || null } });
   }, { isolationLevel: 'Serializable' });
 
   revalidatePath('/inventory');
@@ -132,10 +133,41 @@ export async function duplicateSale(saleId: number) {
     const item = await tx.inventory.findUnique({ where: { brand_btu_ac_type: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } } });
     if (!item) throw new SaleActionError('Produit introuvable; la vente n’a pas été dupliquée.');
     await tx.stockAddition.create({ data: { inventoryId: item.id, brand: item.brand, btu: item.btu, ac_type: item.ac_type, quantityAdded: 1, operation: 'SALE', addedBy: 'Duplication de vente (dashboard)' } });
-    await tx.salesLog.create({ data: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, customer_name: sale.customer_name, customer_phone: sale.customer_phone, notes: sale.notes, status: 'CONFIRMED' } });
+    await tx.salesLog.create({ data: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, customer_name: sale.customer_name, customer_phone: sale.customer_phone, customer_address: sale.customer_address, notes: sale.notes, status: 'CONFIRMED' } });
   }, { isolationLevel: 'Serializable' });
 
   revalidatePath('/inventory');
+  });
+}
+
+export async function notifyDeliveryService(saleId: number): Promise<SaleActionResult> {
+  return runSaleAction('delivery-notification', async () => {
+    await requireAdminAuth();
+    if (!Number.isSafeInteger(saleId) || saleId <= 0) throw new SaleActionError('Vente invalide.');
+    const sale = await prisma.salesLog.findUnique({ where: { id: saleId } });
+    if (!sale) throw new SaleActionError('Vente introuvable.');
+    if (!['CONFIRMED', 'DELIVERED'].includes(sale.status || '')) throw new SaleActionError('Confirmez la vente avant de notifier la livraison.');
+    if (!sale.customer_name || !sale.customer_phone) throw new SaleActionError('Ajoutez le nom et le téléphone du client avant la notification.');
+    if (sale.deliveryNotifiedAt) throw new SaleActionError('Service livraison déjà notifié pour cette vente.');
+
+    const botUrl = process.env.BOT_URL?.trim() || 'https://bot-whatsap-dk-clim.onrender.com';
+    const token = process.env.WEBHOOK_SECRET?.trim();
+    if (!token) throw new SaleActionError('Configurez WEBHOOK_SECRET sur Netlify.');
+    const endpoint = new URL(`${botUrl.replace(/\/$/, '')}/notify-delivery`);
+    if (process.env.NODE_ENV === 'production' && endpoint.protocol !== 'https:') throw new SaleActionError('BOT_URL doit utiliser HTTPS.');
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, saleId }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),
+    });
+    const result = await response.json().catch(() => null) as { success?: boolean; error?: string } | null;
+    if (!response.ok || !result?.success) {
+      throw new SaleActionError(result?.error || 'Le bot WhatsApp n’a pas confirmé l’envoi. Réessayez.');
+    }
+    revalidatePath('/inventory');
   });
 }
 
@@ -147,8 +179,9 @@ export async function recordManualSale(formData: FormData) {
   const ac_type = String(formData.get('ac_type') || 'Split');
   const customer_name = (formData.get('customer_name') as string) || '';
   const customer_phone = (formData.get('customer_phone') as string) || '';
+  const customer_address = String(formData.get('customer_address') || '').trim();
 
-  if (!validBrand(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type)) throw new Error('Produit invalide.');
+  if (!validBrand(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type) || customer_address.length > 250) throw new Error('Produit ou adresse invalide.');
 
   await prisma.$transaction(async (tx) => {
     const stock = await tx.inventory.updateMany({
@@ -166,6 +199,7 @@ export async function recordManualSale(formData: FormData) {
         ac_type,
         customer_name,
         customer_phone,
+        customer_address: customer_address || null,
         status: 'CONFIRMED',
       }
     });

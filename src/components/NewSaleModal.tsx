@@ -100,6 +100,11 @@ export default function NewSaleModal({ inventory = [] }: { inventory?: Inventory
                 <input type="text" name="customer_phone" placeholder="Ex: 0612345678" className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
               </div>
 
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Adresse de livraison</label>
+                <input type="text" name="customer_address" maxLength={250} placeholder="Ville, quartier et adresse" className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all" />
+              </div>
+
               <div className="pt-4">
                 <button type="submit" disabled={isSubmitting || availableProducts.length === 0} className="w-full bg-slate-900 text-white rounded-xl p-3 text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm">
                   {isSubmitting ? "Enregistrement..." : "Enregistrer la vente"}
