@@ -102,6 +102,30 @@ model SalesLog {
   @@map("SalesLog")
 }
 
+model Quote {
+  id                   String   @id @default(cuid())
+  reference            String   @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  customerName         String
+  customerPhone        String
+  customerAddress      String?
+  brand                String
+  btu                  String
+  acType               String
+  modelName            String
+  quantity             Int
+  unitPrice            Int
+  installationPrice    Int      @default(0)
+  installationIncluded Boolean  @default(false)
+  status               String   @default("EN_ATTENTE")
+  convertedAt          DateTime?
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("Quote")
+}
+
 model StockAddition {
   id             Int      @id @default(autoincrement())
   inventoryId    Int?

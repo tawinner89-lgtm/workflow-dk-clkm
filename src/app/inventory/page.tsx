@@ -6,6 +6,7 @@ import NewSaleModal from '@/components/NewSaleModal';
 import AddProductModal from '@/components/AddProductModal';
 import StockExportButton from '@/components/StockExportButton';
 import SalesActions from '@/components/SalesActions';
+import QuoteConsole from '@/components/QuoteConsole';
 import { confirmPendingSale, cancelPendingSale } from '@/app/actions';
 import { Check, X, PackageOpen, History, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -15,16 +16,17 @@ import { redirect } from 'next/navigation';
 export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string; page?: string } }) {
   const session = await getSession();
   if (session?.role !== 'ADMIN') redirect('/admin?next=%2Finventory');
-  const activeTab = searchParams?.tab === 'history' ? 'history' : 'inventory';
+  const activeTab = searchParams?.tab === 'history' ? 'history' : searchParams?.tab === 'quotes' ? 'quotes' : 'inventory';
 
   const inventory = await prisma.inventory.findMany({
     orderBy: [{ brand: 'asc' }, { btu: 'asc' }]
   });
 
   const requestedHistoryPage = Math.max(1, Number.parseInt(searchParams?.page || '1', 10) || 1);
-  const [sales, historyCount] = await Promise.all([
+  const [sales, historyCount, quotes] = await Promise.all([
     activeTab === 'inventory' ? prisma.salesLog.findMany({ orderBy: { timestamp: 'desc' }, take: 50 }) : Promise.resolve([]),
     activeTab === 'history' ? prisma.stockAddition.count() : Promise.resolve(0),
+    activeTab === 'quotes' ? prisma.quote.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }) : Promise.resolve([]),
   ]);
   const salesForUi = sales.map((sale) => ({
     id: Number(sale.id),
@@ -73,6 +75,9 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
           </Link>
           <Link href="/inventory?tab=history" aria-current={activeTab === 'history' ? 'page' : undefined} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'history' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
             Historique
+          </Link>
+          <Link href="/inventory?tab=quotes" aria-current={activeTab === 'quotes' ? 'page' : undefined} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'quotes' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
+            Devis
           </Link>
         </nav>
       </header>
@@ -170,7 +175,13 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
           </div>
         </div>
 
-      </div> : <section className="max-w-7xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
+      </div> : activeTab === 'quotes' ? <QuoteConsole inventory={inventory.map(({ id, brand, btu, ac_type, stock_quantity }) => ({ id, brand, btu, ac_type, stock_quantity }))} quotes={quotes.map((quote) => ({
+        id: quote.id, reference: quote.reference, createdAt: quote.createdAt.toISOString(),
+        customerName: quote.customerName, customerPhone: quote.customerPhone, customerAddress: quote.customerAddress,
+        brand: quote.brand, btu: quote.btu, acType: quote.acType, modelName: quote.modelName,
+        quantity: quote.quantity, unitPrice: quote.unitPrice, installationPrice: quote.installationPrice,
+        installationIncluded: quote.installationIncluded, status: quote.status,
+      }))} /> : <section className="max-w-7xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
         <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700">
           <History size={18} className="text-slate-400" />
           <h2 className="text-base font-semibold tracking-tight">Historique des mouvements de stock</h2>
