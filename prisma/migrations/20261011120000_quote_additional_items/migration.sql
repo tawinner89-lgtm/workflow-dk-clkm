@@ -1,0 +1,2 @@
+ALTER TABLE "Quote"
+ADD COLUMN "additionalItems" TEXT NOT NULL DEFAULT '[]';

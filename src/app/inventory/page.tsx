@@ -165,7 +165,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
         customerName: quote.customerName, customerPhone: quote.customerPhone, customerAddress: quote.customerAddress,
         brand: quote.brand, btu: quote.btu, acType: quote.acType, modelName: quote.modelName,
         quantity: quote.quantity, unitPrice: quote.unitPrice, installationPrice: quote.installationPrice,
-        installationIncluded: quote.installationIncluded, status: quote.status,
+        installationIncluded: quote.installationIncluded, additionalItems: quote.additionalItems, status: quote.status,
       }))} /> : <section className="max-w-7xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100/80 dark:border-slate-700 overflow-hidden">
         <div className="flex items-center gap-2 p-5 border-b border-slate-100/80 dark:border-slate-700">
           <History size={18} className="text-slate-400" />

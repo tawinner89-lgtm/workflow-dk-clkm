@@ -44,7 +44,11 @@ export default function InterventionsClient() {
     clientAddress: '',
     clientContactName: '',
     clientContactPhone: '',
-    technicianName: ''
+    technicianName: '',
+    scheduledDate: '',
+    scheduledTime: '',
+    type: 'DEPANNAGE',
+    problemReported: ''
   });
   const [planSubmitting, setPlanSubmitting] = useState(false);
 
@@ -415,6 +419,7 @@ export default function InterventionsClient() {
     const reference = `INT-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${randomStr}`;
     const newIntervention = {
       ...planForm,
+      startTime: `${planForm.scheduledDate}T${planForm.scheduledTime}`,
       reference,
       status: 'PLANIFIEE'
     };
@@ -427,7 +432,7 @@ export default function InterventionsClient() {
       });
       if (res.ok) {
         setIsPlanning(false);
-        setPlanForm({ clientName: '', clientAddress: '', clientContactName: '', clientContactPhone: '', technicianName: '' });
+        setPlanForm({ clientName: '', clientAddress: '', clientContactName: '', clientContactPhone: '', technicianName: '', scheduledDate: '', scheduledTime: '', type: 'DEPANNAGE', problemReported: '' });
         fetchInterventions();
       } else {
         if (res.status === 401 || res.status === 403) return forceLogout();
@@ -466,8 +471,10 @@ export default function InterventionsClient() {
   };
 
   const getTechMessage = (item: Intervention) => {
-    const dateString = new Date(item.createdAt).toLocaleDateString('fr-FR');
-    const timeString = item.startTime || ' definir';
+    const hasScheduledDate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(item.startTime || '');
+    const scheduledAt = hasScheduledDate ? new Date(item.startTime!) : new Date(item.createdAt);
+    const dateString = scheduledAt.toLocaleDateString('fr-FR');
+    const timeString = hasScheduledDate ? scheduledAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : item.startTime || 'à définir';
     const typeStr = item.type || 'Non specifie';
     const detailsStr = item.problemReported || 'Aucun detail supplementaire';
     return `[Bell] NOUVELLE INTERVENTION - DK CLIM\n\nBonjour ${item.technicianName} [Hi]\n\nUne nouvelle intervention est programmee :\n\n[Date] Date : ${dateString}\n Heure : ${timeString}\n[User] Client : ${item.clientName}\n[Phone] Telephone : ${item.clientContactPhone || 'Non specifie'}\n Adresse : ${item.clientAddress}\n\n[Tool] Intervention :\n${typeStr}\n\n Details :\n${detailsStr}\n\nMerci et bon travail [Strong]\n\nai DK CLIM`;
@@ -687,9 +694,13 @@ export default function InterventionsClient() {
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{item.technicianName}</td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                        {new Date(item.createdAt).toLocaleDateString('fr-FR', {
-                          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                        })}
+                        {(() => {
+                          const hasScheduledDate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(item.startTime || '');
+                          const shownDate = hasScheduledDate ? new Date(item.startTime!) : new Date(item.createdAt);
+                          return shownDate.toLocaleString('fr-FR', {
+                            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          });
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         {item.status === 'REPORTEE' ? (
@@ -808,7 +819,7 @@ export default function InterventionsClient() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <form onSubmit={handlePlanSubmit} className="p-6 space-y-4">
+            <form onSubmit={handlePlanSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('clientName')}</label>
                 <input required value={planForm.clientName} onChange={e => setPlanForm({...planForm, clientName: e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 outline-none focus:ring-2 focus:ring-brand-500" />
@@ -826,6 +837,28 @@ export default function InterventionsClient() {
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('phone')}</label>
                   <input value={planForm.clientContactPhone} onChange={e => setPlanForm({...planForm, clientContactPhone: e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date prévue *</label>
+                  <input type="date" required value={planForm.scheduledDate} onChange={e => setPlanForm({...planForm, scheduledDate: e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 outline-none focus:ring-2 focus:ring-brand-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Heure prévue *</label>
+                  <input type="time" required value={planForm.scheduledTime} onChange={e => setPlanForm({...planForm, scheduledTime: e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 outline-none focus:ring-2 focus:ring-brand-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Objet / type d&apos;intervention *</label>
+                <select required value={planForm.type} onChange={e => setPlanForm({...planForm, type: e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 outline-none focus:ring-2 focus:ring-brand-500">
+                  <option value="DEPANNAGE">Dépannage / réparation</option>
+                  <option value="MAINTENANCE">Entretien</option>
+                  <option value="INSTALLATION">Installation</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description de l&apos;intervention *</label>
+                <textarea required rows={2} value={planForm.problemReported} onChange={e => setPlanForm({...planForm, problemReported: e.target.value})} placeholder="Ex. Installation de tuyauterie cuivre avec gros œuvre" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 outline-none focus:ring-2 focus:ring-brand-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('assignedTo')}</label>

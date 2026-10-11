@@ -137,6 +137,7 @@ model Quote {
   unitPrice            Int
   installationPrice    Int      @default(0)
   installationIncluded Boolean  @default(false)
+  additionalItems      String   @default("[]")
   status               String   @default("EN_ATTENTE")
   convertedAt          DateTime?
 
