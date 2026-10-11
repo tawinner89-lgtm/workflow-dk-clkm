@@ -6,9 +6,9 @@ import NewSaleModal from '@/components/NewSaleModal';
 import AddProductModal from '@/components/AddProductModal';
 import StockExportButton from '@/components/StockExportButton';
 import SalesActions from '@/components/SalesActions';
+import SaleStatusSelect from '@/components/SaleStatusSelect';
 import QuoteConsole from '@/components/QuoteConsole';
-import { confirmPendingSale, cancelPendingSale } from '@/app/actions';
-import { Check, X, PackageOpen, History, ArrowLeft } from 'lucide-react';
+import { PackageOpen, History, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -133,30 +133,10 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                         <div className="text-xs text-slate-500 dark:text-slate-400">{sale.customer_phone || '-'}</div>
                       </td>
                       <td className="py-4 px-5">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase
-                          ${sale.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800' : 
-                            sale.status === 'CANCELLED' || sale.status === 'OUT_OF_STOCK' ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:border-red-800' :
-                            sale.status === 'PREORDER' ? 'bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-900/30 dark:border-blue-800' :
-                            'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/30 dark:border-amber-800'}`}>
-                          {sale.status === 'CONFIRMED' ? 'Confirme' : sale.status === 'CANCELLED' ? 'Annule' : sale.status === 'OUT_OF_STOCK' ? 'Rupture' : sale.status === 'PREORDER' ? 'Commande à importer' : 'En Attente'}
-                        </span>
+                        <SaleStatusSelect saleId={sale.id} status={sale.status} />
                       </td>
                       <td className="py-4 px-5">
                         <div className="flex justify-end gap-1.5">
-                          {sale.status === 'PENDING' && (
-                            <>
-                              <form action={confirmPendingSale.bind(null, sale.id)}>
-                                <button type="submit" className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Confirmer">
-                                  <Check size={18} strokeWidth={2.5} />
-                                </button>
-                              </form>
-                              <form action={cancelPendingSale.bind(null, sale.id)}>
-                                <button type="submit" className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Annuler">
-                                  <X size={18} strokeWidth={2.5} />
-                                </button>
-                              </form>
-                            </>
-                          )}
                           <SalesActions sale={sale} inventory={inventoryForActions} />
                         </div>
                       </td>

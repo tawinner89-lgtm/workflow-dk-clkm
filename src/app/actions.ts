@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth';
 import { catalogAcTypes, catalogBtuOptions } from '@/lib/business';
+import { changeSaleStatus, SaleStatusError, stockTrackedSaleStatuses } from '@/lib/sale-status';
 
 function validBrand(value: string) {
   return /^[A-Za-z0-9À-ž][A-Za-z0-9À-ž .&'’-]{0,49}$/i.test(value.trim());
@@ -16,44 +17,23 @@ async function requireAdminAuth() {
 
 export async function confirmPendingSale(saleId: number) {
   await requireAdminAuth();
-  
-  const result = await prisma.salesLog.updateMany({
-    where: { id: saleId, status: 'PENDING' },
-    data: { status: 'CONFIRMED' },
-  });
-  if (result.count !== 1) throw new Error('Vente introuvable ou déjà traitée.');
+  await changeSaleStatus(saleId, 'CONFIRMED');
   revalidatePath('/inventory');
 }
 
 export async function cancelPendingSale(saleId: number) {
   await requireAdminAuth();
-  
-  const cancelled = await prisma.$transaction(async (tx) => {
-    const sale = await tx.salesLog.findUnique({ where: { id: saleId } });
-    if (!sale || sale.status !== 'PENDING') return false;
-    const result = await tx.salesLog.updateMany({
-      where: { id: saleId, status: 'PENDING' },
-      data: { status: 'CANCELLED' }
-    });
-
-    if (result.count === 0) return false;
-
-    const inventory = await tx.inventory.updateMany({
-      where: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type },
-      data: { stock_quantity: { increment: 1 } },
-    });
-    if (inventory.count !== 1) throw new Error('Produit de la vente introuvable; annulation non appliquée.');
-    const item = await tx.inventory.findFirst({ where: { brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type } });
-    if (!item) throw new Error('Produit de la vente introuvable; annulation non appliquée.');
-    await tx.stockAddition.create({ data: { inventoryId: item.id, brand: sale.brand, btu: sale.btu, ac_type: sale.ac_type, quantityAdded: 1, operation: 'RETURN', addedBy: 'Retour de vente annulée (dashboard)' } });
-    return true;
-  });
-  if (!cancelled) throw new Error('Vente introuvable ou déjà traitée.');
-  
+  await changeSaleStatus(saleId, 'CANCELLED');
   revalidatePath('/inventory');
 }
 
-const stockTrackedSaleStatuses = new Set(['PENDING', 'CONFIRMED']);
+export async function updateSaleStatus(saleId: number, status: string): Promise<SaleActionResult> {
+  return runSaleAction('status', async () => {
+    await requireAdminAuth();
+    await changeSaleStatus(saleId, status);
+    revalidatePath('/inventory');
+  });
+}
 
 type SaleActionResult = { ok: true } | { ok: false; error: string };
 class SaleActionError extends Error {}
@@ -64,6 +44,7 @@ async function runSaleAction(name: string, action: () => Promise<void>): Promise
     return { ok: true };
   } catch (error) {
     if (error instanceof SaleActionError) return { ok: false, error: error.message };
+    if (error instanceof SaleStatusError) return { ok: false, error: error.message };
     if (error instanceof Error && error.message === 'Non autorisé') {
       return { ok: false, error: 'Session expirée. Reconnectez-vous.' };
     }
