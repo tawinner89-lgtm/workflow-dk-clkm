@@ -1,6 +1,7 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { getCatalogOffers, servicePrices } from '@/lib/business';
@@ -93,19 +94,65 @@ export async function createQuote(formData: FormData): Promise<QuoteResult> {
 
 export async function cancelQuote(quoteId: string): Promise<QuoteResult> {
   return runQuoteAction('cancel', async () => {
-    const updated = await prisma.quote.updateMany({
-      where: { id: quoteId, status: 'EN_ATTENTE' }, data: { status: 'ANNULE' },
+    await prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findUnique({ where: { id: quoteId } });
+      if (!quote || !['EN_ATTENTE', 'CONVERTI'].includes(quote.status)) {
+        throw new QuoteError('Devis introuvable ou déjà traité.');
+      }
+
+      if (quote.status === 'CONVERTI') await reverseConvertedQuoteSale(tx, quote);
+      const updated = await tx.quote.updateMany({
+        where: { id: quoteId, status: quote.status }, data: { status: 'ANNULE' },
+      });
+      if (updated.count !== 1) throw new QuoteError('Devis introuvable ou déjà traité.');
     });
-    if (updated.count !== 1) throw new QuoteError('Devis introuvable ou déjà traité.');
   });
 }
 
 export async function deleteQuote(quoteId: string): Promise<QuoteResult> {
   return runQuoteAction('delete', async () => {
-    const deleted = await prisma.quote.deleteMany({
-      where: { id: quoteId, status: { in: ['EN_ATTENTE', 'ANNULE'] } },
+    await prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findUnique({ where: { id: quoteId } });
+      if (!quote) throw new QuoteError('Devis introuvable.');
+      if (quote.status === 'CONVERTI') await reverseConvertedQuoteSale(tx, quote);
+      const deleted = await tx.quote.deleteMany({ where: { id: quoteId } });
+      if (deleted.count !== 1) throw new QuoteError('Devis introuvable.');
     });
-    if (deleted.count !== 1) throw new QuoteError('Seuls les devis en attente ou annulés peuvent être supprimés.');
+  });
+}
+
+function quoteSaleNotes(quote: { reference: string; modelName: string; unitPrice: number; installationPrice: number; installationIncluded: boolean; additionalItems: string; quantity: number }, index: number) {
+  return `Devis ${quote.reference} · ${quote.modelName} · ${quote.unitPrice} DH TTC${quote.installationPrice ? ` · Installation ${quote.installationPrice} DH TTC (pré-câblage existant)` : ''}${quote.installationIncluded ? ' · Installation incluse' : ''}${quote.additionalItems && quote.additionalItems !== '[]' ? ` · Extras: ${quote.additionalItems}` : ''}${quote.quantity > 1 ? ` · unité ${index + 1}/${quote.quantity}` : ''}`;
+}
+
+async function reverseConvertedQuoteSale(tx: Prisma.TransactionClient, quote: {
+  id: string; reference: string; brand: string; btu: string; acType: string; quantity: number;
+}) {
+  const linkedSales = await tx.salesLog.findMany({
+    where: { status: 'CONFIRMED', notes: { contains: quote.reference } },
+    select: { id: true },
+  });
+  if (linkedSales.length !== quote.quantity) {
+    throw new QuoteError('Les ventes liées à ce devis ne correspondent pas. Aucune modification du stock n’a été faite.');
+  }
+
+  const inventory = await tx.inventory.updateMany({
+    where: { brand: quote.brand, btu: quote.btu, ac_type: quote.acType },
+    data: { stock_quantity: { increment: quote.quantity } },
+  });
+  if (inventory.count !== 1) throw new QuoteError('Produit introuvable; annulation impossible.');
+  const item = await tx.inventory.findUnique({
+    where: { brand_btu_ac_type: { brand: quote.brand, btu: quote.btu, ac_type: quote.acType } },
+  });
+  if (!item) throw new QuoteError('Produit introuvable; annulation impossible.');
+
+  await tx.stockAddition.create({ data: {
+    inventoryId: item.id, brand: quote.brand, btu: quote.btu, ac_type: quote.acType,
+    quantityAdded: quote.quantity, operation: 'RETURN', addedBy: `Annulation devis ${quote.reference}`,
+  } });
+  await tx.salesLog.updateMany({
+    where: { id: { in: linkedSales.map((sale) => sale.id) }, status: 'CONFIRMED' },
+    data: { status: 'CANCELLED' },
   });
 }
 
@@ -145,13 +192,95 @@ export async function updateQuote(quoteId: string, formData: FormData): Promise<
     if (additionalItems.some((item) => !item.description || item.description.length > 150 || !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 100 || !Number.isSafeInteger(item.unitPrice) || item.unitPrice < 0 || item.unitPrice > 1_000_000)) throw new QuoteError('Lignes supplémentaires invalides.');
     if (!customerName || customerName.length > 100 || !customerPhone || customerPhone.length > 50 || customerAddress.length > 250 || !modelName || modelName.length > 100) throw new QuoteError('Vérifiez les informations du devis.');
     if (!Number.isSafeInteger(productId) || productId < 1 || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100 || !Number.isSafeInteger(unitPrice) || unitPrice < 1 || unitPrice > 1_000_000 || !Number.isSafeInteger(installationPrice) || installationPrice < 0 || installationPrice > 1_000_000) throw new QuoteError('Vérifiez les quantités et les prix.');
-    const product = await prisma.inventory.findUnique({ where: { id: productId } });
-    if (!product) throw new QuoteError('Produit introuvable dans le stock.');
-    const updated = await prisma.quote.updateMany({
-      where: { id: quoteId, status: 'EN_ATTENTE' },
-      data: { customerName, customerPhone, customerAddress: customerAddress || null, brand: product.brand, btu: product.btu, acType: product.ac_type, modelName, quantity, unitPrice, installationPrice, installationIncluded, additionalItems: JSON.stringify(additionalItems) },
-    });
-    if (updated.count !== 1) throw new QuoteError('Seuls les devis en attente peuvent être modifiés.');
+    await prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findUnique({ where: { id: quoteId } });
+      if (!quote || !['EN_ATTENTE', 'CONVERTI'].includes(quote.status)) {
+        throw new QuoteError('Seuls les devis en attente ou confirmés peuvent être modifiés.');
+      }
+      const product = await tx.inventory.findUnique({ where: { id: productId } });
+      if (!product) throw new QuoteError('Produit introuvable dans le stock.');
+
+      if (quote.status === 'CONVERTI') {
+        const linkedSales = await tx.salesLog.findMany({
+          where: { status: 'CONFIRMED', notes: { contains: quote.reference } },
+          orderBy: { id: 'asc' },
+          select: { id: true },
+        });
+        if (linkedSales.length !== quote.quantity) {
+          throw new QuoteError('Les ventes liées à ce devis ne correspondent pas. Modification annulée.');
+        }
+
+        const sameProduct = quote.brand === product.brand && quote.btu === product.btu && quote.acType === product.ac_type;
+        if (sameProduct) {
+          const stockDelta = quote.quantity - quantity;
+          if (stockDelta !== 0) {
+            const stockChange = await tx.inventory.updateMany({
+              where: { brand: product.brand, btu: product.btu, ac_type: product.ac_type, ...(stockDelta < 0 ? { stock_quantity: { gte: -stockDelta } } : {}) },
+              data: { stock_quantity: { increment: stockDelta } },
+            });
+            if (stockChange.count !== 1) throw new QuoteError('Stock insuffisant pour augmenter la quantité.');
+            await tx.stockAddition.create({ data: {
+              inventoryId: product.id, brand: product.brand, btu: product.btu, ac_type: product.ac_type,
+              quantityAdded: Math.abs(stockDelta), operation: stockDelta > 0 ? 'RETURN' : 'SALE',
+              addedBy: `Modification devis ${quote.reference}`,
+            } });
+          }
+        } else {
+          const oldProduct = await tx.inventory.findUnique({
+            where: { brand_btu_ac_type: { brand: quote.brand, btu: quote.btu, ac_type: quote.acType } },
+          });
+          if (!oldProduct) throw new QuoteError('Ancien produit introuvable; modification annulée.');
+          await tx.inventory.update({ where: { id: oldProduct.id }, data: { stock_quantity: { increment: quote.quantity } } });
+          await tx.stockAddition.create({ data: {
+            inventoryId: oldProduct.id, brand: oldProduct.brand, btu: oldProduct.btu, ac_type: oldProduct.ac_type,
+            quantityAdded: quote.quantity, operation: 'RETURN', addedBy: `Modification devis ${quote.reference}`,
+          } });
+          const newStock = await tx.inventory.updateMany({
+            where: { id: product.id, stock_quantity: { gte: quantity } },
+            data: { stock_quantity: { decrement: quantity } },
+          });
+          if (newStock.count !== 1) throw new QuoteError('Stock insuffisant pour le nouveau produit.');
+          await tx.stockAddition.create({ data: {
+            inventoryId: product.id, brand: product.brand, btu: product.btu, ac_type: product.ac_type,
+            quantityAdded: quantity, operation: 'SALE', addedBy: `Modification devis ${quote.reference}`,
+          } });
+        }
+
+        const updatedQuote = {
+          ...quote, customerName, customerPhone, customerAddress: customerAddress || null,
+          brand: product.brand, btu: product.btu, acType: product.ac_type, modelName,
+          quantity, unitPrice, installationPrice, installationIncluded,
+          additionalItems: JSON.stringify(additionalItems),
+        };
+        const retainedSalesCount = Math.min(linkedSales.length, quantity);
+        for (let index = 0; index < retainedSalesCount; index += 1) {
+          const sale = linkedSales[index];
+          await tx.salesLog.update({ where: { id: sale.id }, data: {
+            brand: product.brand, btu: product.btu, ac_type: product.ac_type,
+            customer_name: customerName, customer_phone: customerPhone, customer_address: customerAddress || null,
+            notes: quoteSaleNotes(updatedQuote, index),
+          } });
+        }
+        if (linkedSales.length > quantity) {
+          await tx.salesLog.updateMany({
+            where: { id: { in: linkedSales.slice(quantity).map((sale) => sale.id) }, status: 'CONFIRMED' },
+            data: { status: 'CANCELLED', notes: `Devis ${quote.reference} · Unité retirée après modification du devis` },
+          });
+        } else if (quantity > linkedSales.length) {
+          await tx.salesLog.createMany({ data: Array.from({ length: quantity - linkedSales.length }, (_, offset) => ({
+            brand: product.brand, btu: product.btu, ac_type: product.ac_type,
+            customer_name: customerName, customer_phone: customerPhone, customer_address: customerAddress || null,
+            status: 'CONFIRMED', notes: quoteSaleNotes(updatedQuote, linkedSales.length + offset),
+          })) });
+        }
+      }
+
+      const updated = await tx.quote.updateMany({
+        where: { id: quoteId, status: quote.status },
+        data: { customerName, customerPhone, customerAddress: customerAddress || null, brand: product.brand, btu: product.btu, acType: product.ac_type, modelName, quantity, unitPrice, installationPrice, installationIncluded, additionalItems: JSON.stringify(additionalItems) },
+      });
+      if (updated.count !== 1) throw new QuoteError('Le devis a déjà été modifié. Rechargez la page.');
+    }, { isolationLevel: 'Serializable' });
   });
 }
 
@@ -185,7 +314,7 @@ export async function convertQuoteToSale(quoteId: string): Promise<QuoteResult> 
         brand: quote.brand, btu: quote.btu, ac_type: quote.acType,
         customer_name: quote.customerName, customer_phone: quote.customerPhone, customer_address: quote.customerAddress,
         status: 'CONFIRMED',
-        notes: `Devis ${quote.reference} · ${quote.modelName} · ${quote.unitPrice} DH TTC${quote.installationPrice ? ` · Installation ${quote.installationPrice} DH TTC (pré-câblage existant)` : ''}${quote.installationIncluded ? ' · Installation incluse' : ''}${quote.additionalItems && quote.additionalItems !== '[]' ? ` · Extras: ${quote.additionalItems}` : ''}${quote.quantity > 1 ? ` · unité ${index + 1}/${quote.quantity}` : ''}`,
+        notes: quoteSaleNotes(quote, index),
       })) });
     }, { isolationLevel: 'Serializable' });
   });
