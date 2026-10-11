@@ -113,6 +113,14 @@ model DeliverySettings {
   @@map("DeliverySettings")
 }
 
+model DeliveryRequest {
+  saleId    Int      @id
+  tokenHash String
+  createdAt DateTime @default(now())
+
+  @@map("DeliveryRequest")
+}
+
 model Quote {
   id                   String   @id @default(cuid())
   reference            String   @unique

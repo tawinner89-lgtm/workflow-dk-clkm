@@ -1,5 +1,6 @@
 'use server';
 
+import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth';
@@ -151,15 +152,21 @@ export async function notifyDeliveryService(saleId: number): Promise<SaleActionR
     if (sale.deliveryNotifiedAt) throw new SaleActionError('Service livraison déjà notifié pour cette vente.');
 
     const botUrl = process.env.BOT_URL?.trim() || 'https://bot-whatsap-dk-clim.onrender.com';
-    const token = process.env.WEBHOOK_SECRET?.trim();
-    if (!token) throw new SaleActionError('Configurez WEBHOOK_SECRET sur Netlify.');
     const endpoint = new URL(`${botUrl.replace(/\/$/, '')}/notify-delivery`);
     if (process.env.NODE_ENV === 'production' && endpoint.protocol !== 'https:') throw new SaleActionError('BOT_URL doit utiliser HTTPS.');
+
+    const deliveryToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(deliveryToken).digest('hex');
+    await prisma.deliveryRequest.upsert({
+      where: { saleId },
+      create: { saleId, tokenHash },
+      update: { tokenHash, createdAt: new Date() },
+    });
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, saleId }),
+      body: JSON.stringify({ deliveryToken, saleId }),
       cache: 'no-store',
       signal: AbortSignal.timeout(15000),
     });
