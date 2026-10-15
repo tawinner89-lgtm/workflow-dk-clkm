@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { adjustStock, deleteInventoryBrand } from '@/app/actions';
 import { catalogAcTypes, getCatalogOffers } from '@/lib/business';
 
@@ -60,9 +60,11 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
       .map((group) => ({ ...group, products: group.products.slice().sort((a, b) => Number(a.btu.replace(/\D/g, '')) - Number(b.btu.replace(/\D/g, ''))) }))
       .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   }, [inventory, activeType]);
+  const lowStock = useMemo(() => inventory.filter((item) => item.stock_quantity <= 2), [inventory]);
 
   return (
     <div className="p-0">
+      {lowStock.length > 0 && <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40"><p className="text-sm font-bold text-red-900 dark:text-red-200">{lowStock.length} alerte{lowStock.length > 1 ? 's' : ''} — stock bas (2 unités ou moins)</p><div className="mt-2 flex flex-wrap gap-1.5">{lowStock.slice(0, 6).map((item) => <span key={item.id} className="rounded-md border border-red-200 bg-white/80 px-2 py-1 text-xs font-medium text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200">{item.brand} {item.btu.replace('_', ' ')} · {item.stock_quantity}</span>)}{lowStock.length > 6 && <span className="px-1 py-1 text-xs font-semibold text-red-800 dark:text-red-200">+{lowStock.length - 6} autres</span>}</div></div>}
       <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-4 py-3 dark:border-slate-700">
         {types.map((type) => {
           const count = typeCounts.get(type) || 0;
@@ -85,8 +87,8 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
           <section key={`${activeType}-${label}`} className="min-w-0 rounded-xl border border-slate-200 p-2.5 dark:border-slate-700">
             <header className="mb-2 flex items-center justify-between gap-2">
               <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">{label}</div>
-              <button type="button" onClick={() => handleDeleteBrand(label)} className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30" title={`Supprimer ${label}`} aria-label={`Supprimer la marque ${label}`}>
-                <Trash2 size={14} />
+              <button type="button" onClick={() => handleDeleteBrand(label)} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-medium text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-slate-600 dark:text-slate-300 dark:hover:border-red-900 dark:hover:bg-red-950/30" title={`Supprimer ${label}`} aria-label={`Supprimer la marque ${label}`}>
+                <Trash2 size={13} /> Supprimer
               </button>
             </header>
             <div className="grid grid-cols-2 gap-1.5">
@@ -97,11 +99,11 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
                       <div className="flex items-center justify-between gap-1">
                         <span className="whitespace-nowrap text-[10px] font-semibold text-slate-700 dark:text-slate-100" title={item.btu.replace('_', ' ')}>{item.btu.replace(/\D/g, '')}</span>
                         <span className={`text-xs font-bold ${item.stock_quantity <= 2 ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-white'}`} title={item.stock_quantity <= 2 ? 'Alerte : stock bas (2 ou moins)' : undefined}>{item.stock_quantity}{item.stock_quantity <= 2 && <span className="ml-1 text-[9px]">⚠</span>}</span>
-                        <button type="button" onClick={() => handleAdjust(item.id, -1)} disabled={item.stock_quantity <= 0} className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30 dark:hover:bg-slate-600" title="Diminuer">
-                          <Minus size={11} />
+                        <button type="button" onClick={() => handleAdjust(item.id, -1)} disabled={item.stock_quantity <= 0} className="rounded px-1.5 py-1 text-[10px] font-semibold text-slate-500 hover:bg-white hover:text-slate-800 disabled:opacity-30 dark:hover:bg-slate-600" title="Retirer une unité" aria-label={`Retirer une unité de ${item.brand} ${item.btu}`}>
+                          −1
                         </button>
-                        <button type="button" onClick={() => handleAdjust(item.id, 1)} className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-slate-600" title="Ajouter au stock">
-                          <Plus size={11} />
+                        <button type="button" onClick={() => handleAdjust(item.id, 1)} className="rounded px-1.5 py-1 text-[10px] font-semibold text-slate-500 hover:bg-white hover:text-slate-800 dark:hover:bg-slate-600" title="Ajouter une unité" aria-label={`Ajouter une unité à ${item.brand} ${item.btu}`}>
+                          +1
                         </button>
                       </div>
                       {(item.price_ttc !== null || offers.length > 0) && <div className="mt-1 space-y-0.5" title={item.price_ttc !== null ? `Prix stock : ${item.price_ttc} DH TTC` : offers.map((offer) => `${offer.modele}: ${offer.prix_promo} DH TTC`).join(' · ')}>
