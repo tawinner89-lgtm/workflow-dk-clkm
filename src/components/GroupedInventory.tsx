@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { adjustStock, deleteInventoryBrand } from '@/app/actions';
 import { catalogAcTypes, getCatalogOffers } from '@/lib/business';
@@ -41,28 +41,36 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
     [inventory]
   );
   const [activeType, setActiveType] = useState(types[0] || 'Split');
-  const visibleInventory = inventory.filter((item) => item.ac_type === activeType);
-  const brands = new Map<string, { label: string; products: InventoryItem[] }>();
-
-  for (const item of visibleInventory) {
-    const key = item.brand.trim().toLocaleLowerCase('fr');
-    const group = brands.get(key) || { label: item.brand, products: [] };
-    group.products.push(item);
-    brands.set(key, group);
-  }
-
-  const brandGroups = Array.from(brands.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  const [isSwitching, startTransition] = useTransition();
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of inventory) counts.set(item.ac_type, (counts.get(item.ac_type) || 0) + 1);
+    return counts;
+  }, [inventory]);
+  const brandGroups = useMemo(() => {
+    const brands = new Map<string, { label: string; products: InventoryItem[] }>();
+    for (const item of inventory) {
+      if (item.ac_type !== activeType) continue;
+      const key = item.brand.trim().toLocaleLowerCase('fr');
+      const group = brands.get(key) || { label: item.brand, products: [] };
+      group.products.push(item);
+      brands.set(key, group);
+    }
+    return Array.from(brands.values())
+      .map((group) => ({ ...group, products: group.products.slice().sort((a, b) => Number(a.btu.replace(/\D/g, '')) - Number(b.btu.replace(/\D/g, ''))) }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  }, [inventory, activeType]);
 
   return (
     <div className="p-0">
       <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-4 py-3 dark:border-slate-700">
         {types.map((type) => {
-          const count = inventory.filter((item) => item.ac_type === type).length;
+          const count = typeCounts.get(type) || 0;
           return (
             <button
               key={type}
               type="button"
-              onClick={() => setActiveType(type)}
+              onClick={() => startTransition(() => setActiveType(type))}
               aria-pressed={activeType === type}
               className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${activeType === type ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}`}
             >
@@ -72,7 +80,7 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+      <div aria-live="polite" className={`grid grid-cols-1 gap-2 p-3 transition-opacity duration-150 sm:grid-cols-2 ${isSwitching ? 'opacity-60' : 'opacity-100'}`}>
         {brandGroups.map(({ label, products }) => (
           <section key={`${activeType}-${label}`} className="min-w-0 rounded-xl border border-slate-200 p-2.5 dark:border-slate-700">
             <header className="mb-2 flex items-center justify-between gap-2">
@@ -82,16 +90,13 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
               </button>
             </header>
             <div className="grid grid-cols-2 gap-1.5">
-              {products
-                .slice()
-                .sort((a, b) => Number(a.btu.replace(/\D/g, '')) - Number(b.btu.replace(/\D/g, '')))
-                .map((item) => {
+              {products.map((item) => {
                   const offers = item.ac_type === 'Split' ? getCatalogOffers(item.brand, item.btu) : [];
                   return (
                     <div key={item.id} className="min-w-0 rounded-lg bg-slate-50 px-2 py-1.5 dark:bg-slate-700/60">
                       <div className="flex items-center justify-between gap-1">
                         <span className="whitespace-nowrap text-[10px] font-semibold text-slate-700 dark:text-slate-100" title={item.btu.replace('_', ' ')}>{item.btu.replace(/\D/g, '')}</span>
-                        <span className={`text-xs font-bold ${item.stock_quantity === 0 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{item.stock_quantity}</span>
+                        <span className={`text-xs font-bold ${item.stock_quantity <= 2 ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-white'}`} title={item.stock_quantity <= 2 ? 'Alerte : stock bas (2 ou moins)' : undefined}>{item.stock_quantity}{item.stock_quantity <= 2 && <span className="ml-1 text-[9px]">⚠</span>}</span>
                         <button type="button" onClick={() => handleAdjust(item.id, -1)} disabled={item.stock_quantity <= 0} className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30 dark:hover:bg-slate-600" title="Diminuer">
                           <Minus size={11} />
                         </button>

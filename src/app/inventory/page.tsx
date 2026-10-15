@@ -9,6 +9,7 @@ import SalesActions from '@/components/SalesActions';
 import SaleStatusSelect from '@/components/SaleStatusSelect';
 import DeliverySettingsButton from '@/components/DeliverySettingsButton';
 import QuoteConsole from '@/components/QuoteConsole';
+import MaterialsInventory from '@/components/MaterialsInventory';
 import { PackageOpen, History, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { getSession } from '@/lib/auth';
@@ -24,12 +25,15 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
   });
 
   const requestedHistoryPage = Math.max(1, Number.parseInt(searchParams?.page || '1', 10) || 1);
-  const [sales, historyCount, quotes, deliverySettings] = await Promise.all([
+  const [sales, stockHistoryCount, materialHistoryCount, quotes, deliverySettings, materials] = await Promise.all([
     activeTab === 'inventory' ? prisma.salesLog.findMany({ orderBy: { timestamp: 'desc' }, take: 50 }) : Promise.resolve([]),
     activeTab === 'history' ? prisma.stockAddition.count() : Promise.resolve(0),
+    activeTab === 'history' ? prisma.materialMovement.count() : Promise.resolve(0),
     activeTab === 'quotes' ? prisma.quote.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }) : Promise.resolve([]),
     prisma.deliverySettings.findUnique({ where: { id: 1 } }),
+    prisma.stockMaterial.findMany({ orderBy: { designation: 'asc' } }),
   ]);
+  const historyCount = stockHistoryCount + materialHistoryCount;
   const salesForUi = sales.map((sale) => ({
     id: Number(sale.id),
     timestamp: sale.timestamp.toISOString(),
@@ -49,11 +53,21 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
   const historyPageSize = 100;
   const historyPageCount = Math.max(1, Math.ceil(historyCount / historyPageSize));
   const historyPage = Math.min(requestedHistoryPage, historyPageCount);
-  const additions = activeTab === 'history' ? await prisma.stockAddition.findMany({
-    orderBy: { createdAt: 'desc' },
-    skip: (historyPage - 1) * historyPageSize,
-    take: historyPageSize,
-  }) : [];
+  const historyRows = activeTab === 'history' ? await prisma.$queryRaw<Array<{ createdAt: Date; product: string; action: string; quantity: string; user: string }>>`
+    SELECT "createdAt", "brand" || ' · ' || replace("btu", '_', ' ') || ' · ' || "ac_type" AS product,
+      "operation" AS action,
+      (CASE WHEN "operation" IN ('REMOVE','SALE','DELETE_BRAND') THEN '−' ELSE '+' END || "quantityAdded"::text) AS quantity,
+      "addedBy" AS user
+    FROM "StockAddition"
+    UNION ALL
+    SELECT "createdAt", "designation" AS product, "action",
+      (COALESCE("quantityBefore"::text, '—') || ' → ' || COALESCE("quantityAfter"::text, 'supprimé') || ' · Prix: ' || COALESCE("priceBefore"::text, '—') || ' → ' || COALESCE("priceAfter"::text, '—') || ' DH') AS quantity,
+      "performedBy" AS user
+    FROM "MaterialMovement"
+    ORDER BY "createdAt" DESC
+    LIMIT ${historyPageSize} OFFSET ${(historyPage - 1) * historyPageSize}
+  ` : [];
+  const materialsForUi = materials.map((item) => ({ id: item.id, designation: item.designation, quantity: item.quantity, price: item.price === null ? null : Number(item.price) }));
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 sm:p-10 font-sans text-slate-900 dark:text-slate-100">
@@ -86,7 +100,9 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
         </nav>
       </header>
 
-      {activeTab === 'inventory' ? <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
+      {activeTab === 'inventory' ? <div className="max-w-7xl mx-auto space-y-8">
+      <MaterialsInventory materials={materialsForUi} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* INVENTORY SECTION */}
         <div className="lg:col-span-5 flex flex-col gap-4">
@@ -160,7 +176,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
           </div>
         </div>
 
-      </div> : activeTab === 'quotes' ? <QuoteConsole inventory={inventory.map(({ id, brand, btu, ac_type, stock_quantity, price_ttc }) => ({ id, brand, btu, ac_type, stock_quantity, price_ttc }))} quotes={quotes.map((quote) => ({
+      </div></div> : activeTab === 'quotes' ? <QuoteConsole inventory={inventory.map(({ id, brand, btu, ac_type, stock_quantity, price_ttc }) => ({ id, brand, btu, ac_type, stock_quantity, price_ttc }))} quotes={quotes.map((quote) => ({
         id: quote.id, reference: quote.reference, createdAt: quote.createdAt.toISOString(),
         customerName: quote.customerName, customerPhone: quote.customerPhone, customerAddress: quote.customerAddress,
         brand: quote.brand, btu: quote.btu, acType: quote.acType, modelName: quote.modelName,
@@ -182,14 +198,14 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
               <th className="py-3 px-5 text-xs font-semibold text-slate-500 uppercase">Utilisateur</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {additions.map((addition) => <tr key={addition.id}>
-                <td className="py-3 px-5 text-sm text-slate-500">{addition.createdAt.toLocaleString('fr-MA', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Africa/Casablanca' })}</td>
-                <td className="py-3 px-5 text-sm font-medium">{addition.brand} · {addition.btu.replace('_', ' ')} · {addition.ac_type}</td>
-                <td className="py-3 px-5 text-sm">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression marque' } as Record<string, string>)[addition.operation] || addition.operation}</td>
-                <td className="py-3 px-5 text-sm">{addition.operation === 'REMOVE' || addition.operation === 'SALE' || addition.operation === 'DELETE_BRAND' ? '−' : '+'}{addition.quantityAdded}</td>
-                <td className="py-3 px-5 text-sm text-slate-500">{addition.addedBy}</td>
+              {historyRows.map((row, index) => <tr key={`${row.createdAt.toISOString()}-${index}`}>
+                <td className="py-3 px-5 text-sm text-slate-500">{row.createdAt.toLocaleString('fr-MA', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Africa/Casablanca' })}</td>
+                <td className="py-3 px-5 text-sm font-medium">{row.product}</td>
+                <td className="py-3 px-5 text-sm">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression marque', CREATE: 'Création', UPDATE: 'Modification', DELETE: 'Suppression', DUPLICATE: 'Duplication', STOCK_ADD: 'Entrée de stock', STOCK_REMOVE: 'Sortie de stock', INITIAL_STOCK: 'Stock initial' } as Record<string, string>)[row.action] || row.action}</td>
+                <td className="py-3 px-5 text-sm">{row.quantity}</td>
+                <td className="py-3 px-5 text-sm text-slate-500">{row.user}</td>
               </tr>)}
-              {additions.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-400">Aucun mouvement enregistré.</td></tr>}
+              {historyRows.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-400">Aucun mouvement enregistré.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -51,18 +51,18 @@ model Intervention {
 }
 
 model Technician {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  phone     String?
-  isAvailable Boolean @default(true)
+  id          String   @id @default(cuid())
+  name        String   @unique
+  password    String
+  createdAt   DateTime @default(now())
+  phone       String?
+  isAvailable Boolean  @default(true)
 }
 
 model BotMessage {
   id        String   @id @default(cuid())
   phone     String
-  role      String   // 'user' or 'assistant'
+  role      String // 'user' or 'assistant'
   content   String
   createdAt DateTime @default(now())
 
@@ -79,7 +79,7 @@ model Inventory {
   id             Int    @id @default(autoincrement())
   brand          String
   btu            String
-  ac_type        String   @default("Split")
+  ac_type        String @default("Split")
   stock_quantity Int
   price_ttc      Int?
 
@@ -88,17 +88,17 @@ model Inventory {
 }
 
 model SalesLog {
-  id             Int      @id @default(autoincrement())
-  timestamp      DateTime @default(now())
-  brand          String
-  btu            String
-  ac_type        String   @default("Split")
-  customer_name  String?
-  customer_phone String?
-  customer_address String?
-  status         String?  @default("PENDING")
-  notes          String?
-  syncHash       String?  @unique
+  id                 Int       @id @default(autoincrement())
+  timestamp          DateTime  @default(now())
+  brand              String
+  btu                String
+  ac_type            String    @default("Split")
+  customer_name      String?
+  customer_phone     String?
+  customer_address   String?
+  status             String?   @default("PENDING")
+  notes              String?
+  syncHash           String?   @unique
   deliveryNotifiedAt DateTime?
 
   @@index([status])
@@ -122,10 +122,10 @@ model DeliveryRequest {
 }
 
 model Quote {
-  id                   String   @id @default(cuid())
-  reference            String   @unique
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  reference            String    @unique
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
   customerName         String
   customerPhone        String
   customerAddress      String?
@@ -135,10 +135,10 @@ model Quote {
   modelName            String
   quantity             Int
   unitPrice            Int
-  installationPrice    Int      @default(0)
-  installationIncluded Boolean  @default(false)
-  additionalItems      String   @default("[]")
-  status               String   @default("EN_ATTENTE")
+  installationPrice    Int       @default(0)
+  installationIncluded Boolean   @default(false)
+  additionalItems      String    @default("[]")
+  status               String    @default("EN_ATTENTE")
   convertedAt          DateTime?
 
   @@index([createdAt])
@@ -147,18 +147,47 @@ model Quote {
 }
 
 model StockAddition {
-  id             Int      @id @default(autoincrement())
-  inventoryId    Int?
-  brand          String
-  btu            String
-  ac_type        String   @default("Split")
-  quantityAdded  Int
-  operation      String   @default("ADD")
-  addedBy        String
-  createdAt      DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  inventoryId   Int?
+  brand         String
+  btu           String
+  ac_type       String   @default("Split")
+  quantityAdded Int
+  operation     String   @default("ADD")
+  addedBy       String
+  createdAt     DateTime @default(now())
 
   @@index([createdAt])
   @@map("StockAddition")
+}
+
+model StockMaterial {
+  id          Int                @id @default(autoincrement())
+  designation String             @unique
+  quantity    Int                @default(0)
+  price       Decimal?           @db.Decimal(12, 2)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  movements   MaterialMovement[]
+
+  @@map("StockMaterial")
+}
+
+model MaterialMovement {
+  id             Int            @id @default(autoincrement())
+  materialId     Int?
+  designation    String
+  action         String
+  quantityBefore Int?
+  quantityAfter  Int?
+  priceBefore    Decimal?       @db.Decimal(12, 2)
+  priceAfter     Decimal?       @db.Decimal(12, 2)
+  performedBy    String
+  createdAt      DateTime       @default(now())
+  material       StockMaterial? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("MaterialMovement")
 }
 
 model InterventionSync {
@@ -167,5 +196,3 @@ model InterventionSync {
 
   @@map("InterventionSync")
 }
-
-
