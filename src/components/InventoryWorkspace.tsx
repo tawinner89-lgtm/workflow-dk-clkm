@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useTransition } from 'react';
 import { AirVent, Boxes, ReceiptText } from 'lucide-react';
+import StockExportButton from '@/components/StockExportButton';
 
 type SectionKey = 'climatiseurs' | 'materiel' | 'ventes';
 
@@ -46,6 +47,7 @@ export default function InventoryWorkspace({
       })}
     </div>
     <section aria-label={sections.find((section) => section.id === active)?.title} className={`min-w-0 transition-opacity duration-150 ${isPending ? 'opacity-60' : 'opacity-100'}`}>
+      <div className="mb-3 flex justify-end"><StockExportButton tab={active} /></div>
       {content}
     </section>
   </div>;

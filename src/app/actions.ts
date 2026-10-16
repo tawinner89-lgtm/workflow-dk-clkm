@@ -411,27 +411,46 @@ async function logMaterialMovement(tx: Prisma.TransactionClient, data: {
   await tx.materialMovement.create({ data: { ...data, performedBy: 'Administrateur dashboard' } });
 }
 
-export async function createStockMaterial(formData: FormData) {
-  await requireAdminAuth();
-  const item = parseMaterialForm(formData);
-  await prisma.$transaction(async (tx) => {
-    const created = await tx.stockMaterial.create({ data: item });
-    await logMaterialMovement(tx, { materialId: created.id, designation: created.designation, action: 'CREATE', quantityAfter: created.quantity, priceAfter: created.price == null ? null : Number(created.price) });
-  });
-  revalidatePath('/inventory');
+type StockMaterialSaveResult = { ok: true } | { ok: false; error: string };
+
+function materialSaveError(error: unknown) {
+  if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+    return 'Un article portant cette désignation existe déjà. Modifiez le nom ou la fiche existante.';
+  }
+  return error instanceof Error ? error.message : 'Enregistrement impossible. Réessayez.';
 }
 
-export async function updateStockMaterial(id: number, formData: FormData) {
+export async function createStockMaterial(formData: FormData): Promise<StockMaterialSaveResult> {
   await requireAdminAuth();
-  if (!Number.isInteger(id) || id <= 0) throw new Error('Article invalide.');
-  const next = parseMaterialForm(formData);
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.stockMaterial.findUnique({ where: { id } });
-    if (!before) throw new Error('Article introuvable.');
-    const updated = await tx.stockMaterial.update({ where: { id }, data: next });
-    await logMaterialMovement(tx, { materialId: id, designation: updated.designation, action: 'UPDATE', quantityBefore: before.quantity, quantityAfter: updated.quantity, priceBefore: before.price == null ? null : Number(before.price), priceAfter: updated.price == null ? null : Number(updated.price) });
-  });
+  let item: ReturnType<typeof parseMaterialForm>;
+  try { item = parseMaterialForm(formData); }
+  catch (error) { return { ok: false, error: materialSaveError(error) }; }
+  try {
+    await prisma.$transaction(async (tx) => {
+      const created = await tx.stockMaterial.create({ data: item });
+      await logMaterialMovement(tx, { materialId: created.id, designation: created.designation, action: 'CREATE', quantityAfter: created.quantity, priceAfter: created.price == null ? null : Number(created.price) });
+    });
+  } catch (error) { return { ok: false, error: materialSaveError(error) }; }
   revalidatePath('/inventory');
+  return { ok: true };
+}
+
+export async function updateStockMaterial(id: number, formData: FormData): Promise<StockMaterialSaveResult> {
+  await requireAdminAuth();
+  if (!Number.isInteger(id) || id <= 0) return { ok: false, error: 'Article invalide.' };
+  let next: ReturnType<typeof parseMaterialForm>;
+  try { next = parseMaterialForm(formData); }
+  catch (error) { return { ok: false, error: materialSaveError(error) }; }
+  try {
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.stockMaterial.findUnique({ where: { id } });
+      if (!before) throw new Error('Article introuvable.');
+      const updated = await tx.stockMaterial.update({ where: { id }, data: next });
+      await logMaterialMovement(tx, { materialId: id, designation: updated.designation, action: 'UPDATE', quantityBefore: before.quantity, quantityAfter: updated.quantity, priceBefore: before.price == null ? null : Number(before.price), priceAfter: updated.price == null ? null : Number(updated.price) });
+    });
+  } catch (error) { return { ok: false, error: materialSaveError(error) }; }
+  revalidatePath('/inventory');
+  return { ok: true };
 }
 
 export async function deleteStockMaterial(id: number) {

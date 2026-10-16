@@ -86,7 +86,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Inventaire & Ventes</h1>
             <p className="text-sm text-slate-500 font-medium mt-1">Gestion des stocks et confirmation des ventes WhatsApp</p>
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-3"><DeliverySettingsButton phone={deliverySettings?.phone || null} /><StockExportButton />{activeTab === 'inventory' && <><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></>}</div>
+          <div className="flex flex-wrap gap-2 sm:gap-3"><DeliverySettingsButton phone={deliverySettings?.phone || null} />{activeTab === 'history' && <StockExportButton tab="history" />}{activeTab === 'quotes' && <StockExportButton tab="quotes" />}{activeTab === 'inventory' && <><AddProductModal inventory={inventory} /><NewSaleModal inventory={inventory} /></>}</div>
         </div>
         <nav className="mt-6 flex max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800" aria-label="Sections de l'inventaire">
           <Link href="/inventory" aria-current={activeTab === 'inventory' ? 'page' : undefined} className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
