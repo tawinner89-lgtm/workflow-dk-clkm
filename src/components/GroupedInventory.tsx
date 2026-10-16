@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { Trash2 } from 'lucide-react';
-import { adjustStock, deleteInventoryBrand } from '@/app/actions';
-import { catalogAcTypes, getCatalogOffers } from '@/lib/business';
+import { Pencil, Trash2, X } from 'lucide-react';
+import { adjustStock, deleteInventoryBrand, deleteInventoryProduct, updateInventoryProduct } from '@/app/actions';
+import { catalogAcTypes, catalogBtuOptions, getCatalogOffers } from '@/lib/business';
 
 type InventoryItem = {
   id: number;
@@ -42,6 +42,8 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
   );
   const [activeType, setActiveType] = useState(types[0] || 'Split');
   const [isSwitching, startTransition] = useTransition();
+  const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const [isSaving, startSaving] = useTransition();
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const item of inventory) counts.set(item.ac_type, (counts.get(item.ac_type) || 0) + 1);
@@ -61,6 +63,15 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
       .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   }, [inventory, activeType]);
   const lowStock = useMemo(() => inventory.filter((item) => item.stock_quantity <= 2), [inventory]);
+
+  async function handleDeleteProduct(item: InventoryItem) {
+    if (!window.confirm(`Supprimer le modèle ${item.brand} ${item.btu.replace('_', ' ')} (${item.ac_type}) ? Son historique sera conservé.`)) return;
+    try {
+      await deleteInventoryProduct(item.id);
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : 'Impossible de supprimer ce modèle.');
+    }
+  }
 
   return (
     <div className="p-0">
@@ -112,6 +123,14 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
                           <span className="shrink-0 font-semibold text-slate-800 dark:text-slate-100">{offer.prix_promo.toLocaleString('fr-MA')} DH TTC</span>
                         </div>)}
                       </div>}
+                      <div className="mt-1.5 flex justify-end gap-1 border-t border-slate-200/70 pt-1 dark:border-slate-600">
+                        <button type="button" onClick={() => setEditing(item)} className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-white hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-600" aria-label={`Modifier ${item.brand} ${item.btu}`}>
+                          <Pencil size={12} /> Modifier
+                        </button>
+                        <button type="button" onClick={() => handleDeleteProduct(item)} className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 dark:text-slate-300 dark:hover:bg-red-950/40" aria-label={`Supprimer ${item.brand} ${item.btu}`}>
+                          <Trash2 size={12} /> Supprimer
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -122,6 +141,27 @@ export default function GroupedInventory({ inventory }: { inventory: InventoryIt
           <div className="col-span-full px-5 py-10 text-center text-sm text-slate-400">Aucun produit {activeType} enregistré.</div>
         )}
       </div>
+      {editing && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isSaving) setEditing(null); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="edit-inventory-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-800">
+          <header className="mb-4 flex items-start justify-between gap-3">
+            <div><h2 id="edit-inventory-title" className="text-lg font-semibold text-slate-900 dark:text-white">Modifier le modèle</h2><p className="mt-1 text-sm text-slate-500">Les changements seront enregistrés dans l’historique.</p></div>
+            <button type="button" onClick={() => setEditing(null)} disabled={isSaving} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-slate-700" aria-label="Fermer"><X size={18} /></button>
+          </header>
+          <form action={(formData) => startSaving(async () => {
+            try { await updateInventoryProduct(editing.id, formData); setEditing(null); }
+            catch (error: unknown) { alert(error instanceof Error ? error.message : 'Impossible de modifier ce modèle.'); }
+          })} className="space-y-3">
+            <label className="block text-sm font-medium">Marque<input name="brand" required defaultValue={editing.brand} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" /></label>
+            <label className="block text-sm font-medium">Puissance<select name="btu" defaultValue={editing.btu} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900">{catalogBtuOptions.map((btu) => <option key={btu} value={btu}>{btu.replace('_', ' ')}</option>)}</select></label>
+            <label className="block text-sm font-medium">Type<select name="ac_type" defaultValue={editing.ac_type} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900">{Array.from(new Set([...catalogAcTypes, editing.ac_type])).map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm font-medium">Quantité<input name="stock" type="number" min="0" step="1" required defaultValue={editing.stock_quantity} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" /></label>
+              <label className="block text-sm font-medium">Prix TTC (DH)<input name="price_ttc" type="number" min="1" step="1" defaultValue={editing.price_ttc ?? ''} placeholder="Facultatif" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" /></label>
+            </div>
+            <footer className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setEditing(null)} disabled={isSaving} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium dark:border-slate-600">Annuler</button><button type="submit" disabled={isSaving} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{isSaving ? 'Enregistrement…' : 'Enregistrer'}</button></footer>
+          </form>
+        </section>
+      </div>}
     </div>
   );
 }

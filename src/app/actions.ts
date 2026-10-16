@@ -280,6 +280,11 @@ export async function deleteInventoryBrand(brand: string) {
     });
     if (items.length === 0) throw new Error('Marque introuvable.');
 
+    const pendingSales = await tx.salesLog.count({
+      where: { status: 'PENDING', OR: items.map(({ brand: itemBrand, btu, ac_type }) => ({ brand: itemBrand, btu, ac_type })) },
+    });
+    if (pendingSales > 0) throw new Error('Impossible de supprimer cette marque : traitez d’abord ses ventes en attente.');
+
     await tx.stockAddition.createMany({
       data: items.map((item) => ({
         inventoryId: item.id,
@@ -294,6 +299,93 @@ export async function deleteInventoryBrand(brand: string) {
 
     const result = await tx.inventory.deleteMany({ where: { id: { in: items.map((item) => item.id) } } });
     if (result.count !== items.length) throw new Error('La suppression de la marque est incomplète.');
+  });
+
+  revalidatePath('/inventory');
+  revalidatePath('/admin');
+}
+
+export async function updateInventoryProduct(id: number, formData: FormData) {
+  await requireAdminAuth();
+  if (!Number.isInteger(id) || id <= 0) throw new Error('Produit invalide.');
+
+  const brand = String(formData.get('brand') || '').trim();
+  const btu = String(formData.get('btu') || '').toUpperCase();
+  const ac_type = String(formData.get('ac_type') || 'Split');
+  const stock_quantity = Number(formData.get('stock'));
+  const rawPrice = String(formData.get('price_ttc') ?? '').trim();
+  const price_ttc = rawPrice === '' ? null : Number(rawPrice);
+  if (!validBrand(brand) || !catalogBtuOptions.includes(btu) || !catalogAcTypes.includes(ac_type)
+    || !Number.isInteger(stock_quantity) || stock_quantity < 0
+    || (price_ttc !== null && (!Number.isSafeInteger(price_ttc) || price_ttc <= 0 || price_ttc > 1_000_000))) {
+    throw new Error('Vérifiez la marque, la puissance, la catégorie, la quantité et le prix.');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.inventory.findUnique({ where: { id } });
+    if (!current) throw new Error('Produit introuvable.');
+    const duplicate = await tx.inventory.findUnique({ where: { brand_btu_ac_type: { brand, btu, ac_type } } });
+    if (duplicate && duplicate.id !== id) throw new Error('Ce modèle existe déjà dans cette catégorie.');
+
+    const identityChanged = current.brand !== brand || current.btu !== btu || current.ac_type !== ac_type;
+    const stockDelta = stock_quantity - current.stock_quantity;
+    const priceChanged = current.price_ttc !== price_ttc;
+    if (!identityChanged && stockDelta === 0 && !priceChanged) return;
+
+    if (identityChanged) {
+      await tx.salesLog.updateMany({
+        where: { brand: current.brand, btu: current.btu, ac_type: current.ac_type, status: 'PENDING' },
+        data: { brand, btu, ac_type },
+      });
+    }
+    await tx.inventory.update({ where: { id }, data: { brand, btu, ac_type, stock_quantity, price_ttc } });
+
+    if (stockDelta !== 0) {
+      await tx.stockAddition.create({
+        data: {
+          inventoryId: id, brand: current.brand, btu: current.btu, ac_type: current.ac_type,
+          quantityAdded: Math.abs(stockDelta), operation: stockDelta > 0 ? 'ADD' : 'REMOVE',
+          addedBy: 'Modification du stock (dashboard)',
+        },
+      });
+    }
+    if (identityChanged || priceChanged) {
+      const oldPrice = current.price_ttc === null ? 'non renseigné' : `${current.price_ttc} DH`;
+      const newPrice = price_ttc === null ? 'non renseigné' : `${price_ttc} DH`;
+      await tx.stockAddition.create({
+        data: {
+          inventoryId: id, brand: current.brand, btu: current.btu, ac_type: current.ac_type,
+          quantityAdded: 0, operation: 'EDIT',
+          addedBy: `Administrateur dashboard → ${brand} · ${btu.replace('_', ' ')} · ${ac_type} · prix ${oldPrice} → ${newPrice}`,
+        },
+      });
+    }
+  });
+
+  revalidatePath('/inventory');
+  revalidatePath('/admin');
+}
+
+export async function deleteInventoryProduct(id: number) {
+  await requireAdminAuth();
+  if (!Number.isInteger(id) || id <= 0) throw new Error('Produit invalide.');
+
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.inventory.findUnique({ where: { id } });
+    if (!item) throw new Error('Modèle introuvable.');
+
+    const pendingSales = await tx.salesLog.count({
+      where: { brand: item.brand, btu: item.btu, ac_type: item.ac_type, status: 'PENDING' },
+    });
+    if (pendingSales > 0) throw new Error('Impossible de supprimer ce modèle : traitez d’abord ses ventes en attente.');
+
+    await tx.stockAddition.create({
+      data: {
+        inventoryId: item.id, brand: item.brand, btu: item.btu, ac_type: item.ac_type,
+        quantityAdded: item.stock_quantity, operation: 'DELETE_ITEM', addedBy: 'Administrateur dashboard',
+      },
+    });
+    await tx.inventory.delete({ where: { id } });
   });
 
   revalidatePath('/inventory');

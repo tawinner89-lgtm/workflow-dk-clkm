@@ -12,9 +12,9 @@ export default async function RecentStockAdditions() {
         <ul className="divide-y divide-slate-100 dark:divide-slate-700">
           {entries.map((entry) => <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 text-sm">
             <span className="font-medium">{entry.brand} · {entry.btu.replace('_', ' ')} · {entry.ac_type}</span>
-            <span className={entry.operation === 'REMOVE' || entry.operation === 'SALE' || entry.operation === 'DELETE_BRAND' ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}>
-              {entry.operation === 'REMOVE' || entry.operation === 'SALE' || entry.operation === 'DELETE_BRAND' ? '−' : '+'}{entry.quantityAdded}
-              <span className="ml-1 text-xs">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression' } as Record<string, string>)[entry.operation] || entry.operation}</span>
+            <span className={entry.operation === 'REMOVE' || entry.operation === 'SALE' || entry.operation === 'DELETE_BRAND' || entry.operation === 'DELETE_ITEM' ? 'text-red-600 dark:text-red-400' : entry.operation === 'EDIT' ? 'text-blue-700 dark:text-blue-300' : 'text-emerald-700 dark:text-emerald-400'}>
+              {entry.operation === 'REMOVE' || entry.operation === 'SALE' || entry.operation === 'DELETE_BRAND' || entry.operation === 'DELETE_ITEM' ? '−' : entry.operation === 'EDIT' ? '•' : '+'}{entry.quantityAdded}
+              <span className="ml-1 text-xs">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression marque', DELETE_ITEM: 'Suppression modèle', EDIT: 'Modification' } as Record<string, string>)[entry.operation] || entry.operation}</span>
             </span>
             <span className="text-slate-500">{entry.addedBy}</span>
             <time className="ml-auto text-slate-500" dateTime={entry.createdAt.toISOString()}>

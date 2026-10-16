@@ -57,7 +57,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
   const historyRows = activeTab === 'history' ? await prisma.$queryRaw<Array<{ createdAt: Date; product: string; action: string; quantity: string; user: string }>>`
     SELECT "createdAt", "brand" || ' · ' || replace("btu", '_', ' ') || ' · ' || "ac_type" AS product,
       "operation" AS action,
-      (CASE WHEN "operation" IN ('REMOVE','SALE','DELETE_BRAND') THEN '−' ELSE '+' END || "quantityAdded"::text) AS quantity,
+      (CASE WHEN "operation" IN ('REMOVE','SALE','DELETE_BRAND','DELETE_ITEM') THEN '−' WHEN "operation" = 'EDIT' THEN '•' ELSE '+' END || "quantityAdded"::text) AS quantity,
       "addedBy" AS user
     FROM "StockAddition"
     UNION ALL
@@ -156,7 +156,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
               {historyRows.map((row, index) => <tr key={`${row.createdAt.toISOString()}-${index}`}>
                 <td className="py-3 px-5 text-sm text-slate-500">{row.createdAt.toLocaleString('fr-MA', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Africa/Casablanca' })}</td>
                 <td className="py-3 px-5 text-sm font-medium">{row.product}</td>
-                <td className="py-3 px-5 text-sm">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression marque', CREATE: 'Création', UPDATE: 'Modification', DELETE: 'Suppression', DUPLICATE: 'Duplication', STOCK_ADD: 'Entrée de stock', STOCK_REMOVE: 'Sortie de stock', INITIAL_STOCK: 'Stock initial' } as Record<string, string>)[row.action] || row.action}</td>
+                <td className="py-3 px-5 text-sm">{({ ADD: 'Ajout', REMOVE: 'Retrait', SALE: 'Vente', RETURN: 'Retour', DELETE_BRAND: 'Suppression marque', DELETE_ITEM: 'Suppression modèle', EDIT: 'Modification', CREATE: 'Création', UPDATE: 'Modification', DELETE: 'Suppression', DUPLICATE: 'Duplication', STOCK_ADD: 'Entrée de stock', STOCK_REMOVE: 'Sortie de stock', INITIAL_STOCK: 'Stock initial' } as Record<string, string>)[row.action] || row.action}</td>
                 <td className="py-3 px-5 text-sm">{row.quantity}</td>
                 <td className="py-3 px-5 text-sm text-slate-500">{row.user}</td>
               </tr>)}
